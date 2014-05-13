@@ -1,0 +1,27 @@
+part probability distributions:
+  mandatory (1, possibly backup) #cockpit, etc.
+  redundant (at least 2, possibly more) #warship bridge
+  primary (several) #ship's primary purpose: warship weapons, cargo ship cargo bays, etc.
+  secondary (probably some) #related to ship's primary purpose: warship medbays, cargo ship refineries, etc.
+  rare (possibly 1) #unrelated to ship's primary purpose: warship refineries, cargo ship weapons, gravity generators, etc.
+  none (0)
+
+part:
+  name
+  size
+  cargo doors
+  access requirements
+  room affinities
+
+room:
+  name
+  wall/floor material affinities
+  door probability
+  part probabilities, min/max requirements
+
+ship class:
+  name
+  material affinities
+  speed/maneuverability requirements
+  part probabilities, min/max requirements
+  room probabilities, min/max requirements
