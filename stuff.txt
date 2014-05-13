@@ -3,11 +3,13 @@ part probability distributions:
   redundant (at least 2, possibly more) #warship bridge
   primary (several) #ship's primary purpose: warship weapons, cargo ship cargo bays, etc.
   secondary (probably some) #related to ship's primary purpose: warship medbays, cargo ship refineries, etc.
-  rare (possibly 1) #unrelated to ship's primary purpose: warship refineries, cargo ship weapons, gravity generators, etc.
+  tertiary (possibly one or more) #mostly unrelated to ship's primary purpose: cargo ship weapons, etc.
+  rare (possibly 1) #completely unrelated to ship's primary purpose: warship refineries, gravity generators, etc.
   none (0)
 
 part:
   name
+  type
   size
   cargo doors
   access requirements
@@ -15,13 +17,35 @@ part:
 
 room:
   name
-  wall/floor material affinities
+  wall/floor material affinities (interior wall, light armor, heavy armor)
+  enclosure affinities (none, floor, full)
   door probability
+  window probability
   part probabilities, min/max requirements
 
 ship class:
   name
-  material affinities
-  speed/maneuverability requirements
+  type (small ship/large ship/station)
+  material affinities (interior wall, light armor, heavy armor)
+  enclosure affinities (none, platform, full)
+  symmetry affinities (none, partial, full)
+  speed/maneuverability min/max requirements
   part probabilities, min/max requirements
   room probabilities, min/max requirements
+
+
+generate ship:
+  select type
+  select class
+  select hull material
+  select parts
+  select rooms
+  assign parts to rooms
+  loop until no more gyros/engines/reactors necessary:
+    preliminary layout
+    estimate total mass
+    add gyros and engines
+    estimate power consumption
+    add reactors
+    assign gyros and reactors to rooms
+  finalize layout
