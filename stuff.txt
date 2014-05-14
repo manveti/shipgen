@@ -9,11 +9,11 @@ part probability distributions:
 
 part:
   name
-  type
+  type (small ship/large ship/station)
   size
   cargo doors
   access requirements
-  room affinities
+  room affinities (including entry for "exterior")
 
 room:
   name
@@ -30,6 +30,7 @@ ship class:
   enclosure affinities (none, platform, full)
   symmetry affinities (none, partial, full)
   speed/maneuverability min/max requirements
+  speed min factors (fwd = min..1 * aft; lateral = min..fwd_factor * aft)
   part probabilities, min/max requirements
   room probabilities, min/max requirements
 
