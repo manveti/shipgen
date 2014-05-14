@@ -10,6 +10,7 @@ part probability distributions:
 part:
   name
   type (small ship/large ship/station)
+  power consumption (negative for reactors)
   size
   cargo doors
   access requirements
@@ -23,6 +24,22 @@ room:
   window probability
   part probabilities, min/max requirements
 
+power levels:
+  minimum: largest of
+    150% aft-facing thrusters
+	all gyros
+	largest single part
+  standard: largest of
+    150% aft-facing and single lateral-facing thrusters
+	150% aft-facing thrusters + all gyros
+	all parts
+  high: largest of
+    150% aft-facing and two lateral-facing thrusters
+	150% aft-facing and single lateral-facing thrusters + all gyros
+	100% aft-facing thrusters + all gyros + all parts
+  maximum:
+    150% aft-facing and two lateral-facing thrusters + all gyros + all parts
+
 ship class:
   name
   type (small ship/large ship/station)
@@ -31,6 +48,7 @@ ship class:
   symmetry affinities (none, partial, full)
   speed/maneuverability min/max requirements
   speed min factors (fwd = min..1 * aft; lateral = min..fwd_factor * aft)
+  power level affinities
   part probabilities, min/max requirements
   room probabilities, min/max requirements
 
