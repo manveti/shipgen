@@ -2,6 +2,7 @@ import os.path
 import random
 
 import ConfigFile
+import Dists
 import Util
 
 from Constants import *
@@ -124,11 +125,16 @@ class ShipClass:
 			if (partConfig[0] == '"'):
 				idx = partConfig.find('"', 1)
 				if (idx > 0):
+#####
+##
+#verify distribution exists in Dists.dists
 					self.parts[part][PART_DISTRIBUTION] = partConfig[1 : idx]
 					partConfig = partConfig[idx + 1:]
 			partConfig = [x for x in partConfig.split() if x]
 			if (not self.parts[part].has_key(PART_DISTRIBUTION)):
 				self.parts[part][PART_DISTRIBUTION] = partConfig.pop(0)
+##
+#####
 			for key in [PART_MIN, PART_MAX]:
 				if (partConfig):
 					x = int(partConfig.pop(0))
@@ -144,11 +150,16 @@ class ShipClass:
 			if (roomConfig[0] == '"'):
 				idx = roomConfig.find('"', 1)
 				if (idx > 0):
+#####
+##
+#verify distribution exists in Dists.dists
 					self.rooms[room][ROOM_DISTRIBUTION] = roomConfig[1 : idx]
 					roomConfig = roomConfig[idx + 1:]
 			roomConfig = [x for x in roomConfig.split() if x]
 			if (not self.rooms[room].has_key(ROOM_DISTRIBUTION)):
 				self.rooms[room][ROOM_DISTRIBUTION] = roomConfig.pop(0)
+##
+#####
 			for key in [ROOM_MIN, ROOM_MAX]:
 				if (roomConfig):
 					x = int(roomConfig.pop(0))
@@ -181,6 +192,7 @@ def init():
 	global initialized
 	if (initialized):
 		return
+	Dists.init()
 	for (shipType, typeAbbr) in TYPE_ABBRS.items():
 		classes[shipType] = {}
 		configPath = os.path.join("data", "classes_%s.cfg" % typeAbbr)
