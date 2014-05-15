@@ -45,7 +45,7 @@ def init():
 		return
 	for size in SIZES:
 		parts[size] = {}
-		configPath = os.path.join("data", "parts_%s.cfg" % TYPE_ABBRS[size])
+		configPath = os.path.join(os.path.dirname(__file__), "data", "parts_%s.cfg" % TYPE_ABBRS[size])
 		configDict = ConfigFile.readFile(configPath)
 		for partName in configDict.keys():
 			if (type(configDict[partName]) != type({})):

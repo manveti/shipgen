@@ -86,7 +86,7 @@ def init():
 	if (initialized):
 		return
 	Parts.init()
-	configPath = os.path.join("data", "rooms.cfg")
+	configPath = os.path.join(os.path.dirname(__file__), "data", "rooms.cfg")
 	configDict = ConfigFile.readFile(configPath)
 	for roomName in configDict.keys():
 		if (type(configDict[roomName]) != type({})):
