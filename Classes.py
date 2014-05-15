@@ -4,11 +4,10 @@ import random
 import ConfigFile
 import Dists
 import Parts
+import Rooms
 import Util
 
 from Constants import *
-
-DEFAULT_MATERIAL = "Light Armor"
 
 MATERIALS = 'materials'
 ENCLOSURE = 'enclosure'
@@ -218,6 +217,7 @@ def init():
 		return
 	Dists.init()
 	Parts.init()
+	Rooms.init()
 	for (shipType, typeAbbr) in TYPE_ABBRS.items():
 		classes[shipType] = {}
 		configPath = os.path.join("data", "classes_%s.cfg" % typeAbbr)
