@@ -3,6 +3,7 @@ import random
 
 import ConfigFile
 import Dists
+import Parts
 import Util
 
 from Constants import *
@@ -51,6 +52,8 @@ classes = {}
 class ShipClass:
 	def __init__(self, shipType, configDict):
 		self.shipType = shipType
+		if (not Parts.parts.has_key(TYPE_SIZES[self.shipType])):
+			raise Exception("No parts available for ship type %s" % self.shipType)
 
 		materialSum = 0
 		self.materials = {}
@@ -121,28 +124,33 @@ class ShipClass:
 
 		self.parts = {}
 		for part in configDict.get(PARTS, {}).keys():
+			if (not Parts.parts[TYPE_SIZES[self.shipType]].has_key(part)):
 #####
 ##
-#verify part exists in Parts.parts[TYPE_SIZES[self.shipType]]
+				#warn about unrecognized part
 ##
 #####
+				continue
 			partConfig = configDict[PARTS][part]
 			if (not partConfig):
 				continue
-			self.parts[part] = {}
+			partDict = {}
 			if (partConfig[0] == '"'):
 				idx = partConfig.find('"', 1)
 				if (idx > 0):
-#####
-##
-#verify distribution exists in Dists.dists
-					self.parts[part][PART_DISTRIBUTION] = partConfig[1 : idx]
+					partDict[PART_DISTRIBUTION] = partConfig[1 : idx]
 					partConfig = partConfig[idx + 1:]
 			partConfig = [x for x in partConfig.split() if x]
-			if (not self.parts[part].has_key(PART_DISTRIBUTION)):
-				self.parts[part][PART_DISTRIBUTION] = partConfig.pop(0)
+			if (not partDict.has_key(PART_DISTRIBUTION)):
+				partDict[PART_DISTRIBUTION] = partConfig.pop(0)
+			if (not Dists.dists.has_key(partDict[PART_DISTRIBUTION])):
+#####
+##
+				#warn about unrecognized distribution
 ##
 #####
+				continue
+			self.parts[part] = partDict
 			for key in [PART_MIN, PART_MAX]:
 				if (partConfig):
 					x = int(partConfig.pop(0))
@@ -159,20 +167,23 @@ class ShipClass:
 			roomConfig = configDict[ROOMS][room]
 			if (not roomConfig):
 				continue
-			self.rooms[room] = {}
+			roomDict = {}
 			if (roomConfig[0] == '"'):
 				idx = roomConfig.find('"', 1)
 				if (idx > 0):
-#####
-##
-#verify distribution exists in Dists.dists
-					self.rooms[room][ROOM_DISTRIBUTION] = roomConfig[1 : idx]
+					roomDict[ROOM_DISTRIBUTION] = roomConfig[1 : idx]
 					roomConfig = roomConfig[idx + 1:].strip()
 			roomConfig = [x for x in roomConfig.split() if x]
-			if (not self.rooms[room].has_key(ROOM_DISTRIBUTION)):
-				self.rooms[room][ROOM_DISTRIBUTION] = roomConfig.pop(0)
+			if (not roomDict.has_key(ROOM_DISTRIBUTION)):
+				roomDict[ROOM_DISTRIBUTION] = roomConfig.pop(0)
+			if (not Dists.dists.has_key(roomDict[ROOM_DISTRIBUTION])):
+#####
+##
+				#warn about unrecognized distribution
 ##
 #####
+				continue
+			self.rooms[room] = roomDict
 			for key in [ROOM_MIN, ROOM_MAX]:
 				if (roomConfig):
 					x = int(roomConfig.pop(0))
@@ -206,6 +217,7 @@ def init():
 	if (initialized):
 		return
 	Dists.init()
+	Parts.init()
 	for (shipType, typeAbbr) in TYPE_ABBRS.items():
 		classes[shipType] = {}
 		configPath = os.path.join("data", "classes_%s.cfg" % typeAbbr)
