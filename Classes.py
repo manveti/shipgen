@@ -14,6 +14,7 @@ ENCLOSURE = 'enclosure'
 ENCLOSURE_NONE = 'none'
 ENCLOSURE_PLATFORM = 'platform'
 ENCLOSURE_FULL = 'full'
+ENCLOSURE_SEALED = 'sealed'
 SYMMETRY = 'symmetry'
 SYMMETRY_NONE = 'none'
 SYMMETRY_PARTIAL = 'partial'
@@ -48,7 +49,9 @@ classes = {}
 
 
 class ShipClass:
-	def __init__(self, configDict):
+	def __init__(self, shipType, configDict):
+		self.shipType = shipType
+
 		materialSum = 0
 		self.materials = {}
 		for material in configDict.get(MATERIALS, {}).keys():
@@ -64,7 +67,7 @@ class ShipClass:
 
 		enclosureSum = 0
 		self.enclosure = {}
-		for encType in [ENCLOSURE_NONE, ENCLOSURE_PLATFORM, ENCLOSURE_FULL]:
+		for encType in [ENCLOSURE_NONE, ENCLOSURE_PLATFORM, ENCLOSURE_FULL, ENCLOSURE_SEALED]:
 			self.enclosure[encType] = float(configDict.get(ENCLOSURE, {}).get(encType, 0))
 			enclosureSum += self.enclosure[encType]
 		if (enclosureSum > 0):
@@ -118,6 +121,11 @@ class ShipClass:
 
 		self.parts = {}
 		for part in configDict.get(PARTS, {}).keys():
+#####
+##
+#verify part exists in Parts.parts[TYPE_SIZES[self.shipType]]
+##
+#####
 			partConfig = configDict[PARTS][part]
 			if (not partConfig):
 				continue
@@ -143,6 +151,11 @@ class ShipClass:
 
 		self.rooms = {}
 		for room in configDict.get(ROOMS, {}).keys():
+#####
+##
+#verify room exists in Rooms.rooms
+##
+#####
 			roomConfig = configDict[ROOMS][room]
 			if (not roomConfig):
 				continue
@@ -154,7 +167,7 @@ class ShipClass:
 ##
 #verify distribution exists in Dists.dists
 					self.rooms[room][ROOM_DISTRIBUTION] = roomConfig[1 : idx]
-					roomConfig = roomConfig[idx + 1:]
+					roomConfig = roomConfig[idx + 1:].strip()
 			roomConfig = [x for x in roomConfig.split() if x]
 			if (not self.rooms[room].has_key(ROOM_DISTRIBUTION)):
 				self.rooms[room][ROOM_DISTRIBUTION] = roomConfig.pop(0)
@@ -200,5 +213,5 @@ def init():
 		for className in configDict.keys():
 			if (type(configDict[className]) != type({})):
 				continue
-			classes[shipType][className] = ShipClass(configDict[className])
+			classes[shipType][className] = ShipClass(shipType, configDict[className])
 	initialized = True

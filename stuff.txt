@@ -10,19 +10,21 @@ part probability distributions:
 part:
   name
   type (small ship/large ship/station)
+  mass
   power consumption (negative for reactors)
   size
+  attachment points (all if unspecified)
   cargo doors
-  access requirements
+  access requirements (num_required x1 y1 z1 x2 y2 z2 ...)
   room affinities (including entry for "exterior")
 
 room:
   name
   wall/floor material affinities (interior wall, light armor, heavy armor)
-  enclosure affinities (none, floor, full)
+  enclosure affinities (none, floor, full, sealed)
   door probability
   window probability
-  part probabilities, min/max requirements
+  part min/max requirements
 
 power levels:
   minimum: largest of
@@ -59,7 +61,7 @@ generate ship:
   select hull material
   select parts
   select rooms
-  assign parts to rooms
+  assign parts to rooms (strip out empty rooms)
   loop until no more gyros/engines/reactors necessary:
     preliminary layout
     estimate total mass
@@ -68,3 +70,11 @@ generate ship:
     add reactors
     assign gyros and reactors to rooms
   finalize layout
+
+
+choose reactors:
+  reactors = list of parts with negative power consumption
+  sort reactors by power output / mass
+  loop until no more reactors:
+    next priority reactor = reactors[0]
+	remove reactors with mass >= reactors[0].mass (maybe reactors[0].mass * 0.5 or some similar factor)
