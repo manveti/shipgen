@@ -158,11 +158,13 @@ class ShipClass:
 
 		self.rooms = {}
 		for room in configDict.get(ROOMS, {}).keys():
+			if (not Rooms.rooms.has_key(room)):
 #####
 ##
-#verify room exists in Rooms.rooms
+				#warn about unrecognized room
 ##
 #####
+				continue
 			roomConfig = configDict[ROOMS][room]
 			if (not roomConfig):
 				continue
@@ -197,16 +199,44 @@ class ShipClass:
 		accelFactorFwd = random.uniform(self.accel[ACCEL_FWD], 1)
 		accelFactorLat = random.uniform(self.accel[ACCEL_LAT], accelFactorFwd)
 		turn = random.uniform(self.turn[TURN_MIN], self.turn[TURN_MAX])
+		partCounts = {}
+		for part in self.parts.keys():
+			n = Dists.dists[self.parts[part][PART_DISTRIBUTION]].getCount()
+			if ((self.parts[part].has_key(PART_MIN)) and (n < self.parts[part][PART_MIN])):
+				n = self.parts[part][PART_MIN]
+			if ((self.parts[part].has_key(PART_MAX)) and (n > self.parts[part][PART_MAX])):
+				n = self.parts[part][PART_MAX]
+			if (n > 0):
+				partCounts[part] = n
+		roomCounts = {}
+		for room in self.rooms.keys():
+			n = Dists.dists[self.rooms[room][ROOM_DISTRIBUTION]].getCount()
+			if ((self.rooms[room].has_key(ROOM_MIN)) and (n < self.rooms[room][ROOM_MIN])):
+				n = self.rooms[room][ROOM_MIN]
+			if ((self.rooms[room].has_key(ROOM_MAX)) and (n > self.rooms[room][ROOM_MAX])):
+				n = self.rooms[room][ROOM_MAX]
 #####
 ##
-		#select part counts (self.parts)
-		#select room counts (self.rooms)
+			#if insufficient parts for room, reduce n (to min of self.rooms[room][ROOM_MIN])
+			#if still insufficient parts for room, increase part count (to maximum of self.parts[part][PART_MAX])
+			#if still insufficient parts, n=0
+##
+#####
+			if (n > 0):
+				roomCounts[room] = n
+#####
+##
+		#if insufficient parts for all rooms, reduce count of all affected rooms with count > self.rooms[room][ROOM_MIN]
+		#if still insufficient parts for all rooms, increase part count (to maximum of self.parts[part][PART_MAX])
+		#if still insufficient parts, remove random affected room until sufficient parts
 		#...
 		print "material: %s"%material
 		print "enclosure: %s"%enclosure
 		print "symmetry: %s"%symmetry
 		print "accel: %s (%s, %s)"%(accel,accelFactorFwd,accelFactorLat)
 		print "turn: %s"%turn
+		print "parts: %s"%partCounts
+		print "rooms: %s"%roomCounts
 ##
 #####
 
