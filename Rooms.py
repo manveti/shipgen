@@ -33,7 +33,7 @@ rooms = {}
 
 class Room:
 	def __init__(self, configDict):
-		if (not Parts.parts.has_key(TYPE_LG)):
+		if (TYPE_LG not in Parts.parts):
 			raise Exception("No parts available for ship type %s" % TYPE_LG)
 
 		materialSum = 0
@@ -67,7 +67,7 @@ class Room:
 
 		self.parts = {}
 		for part in configDict.get(PARTS, {}).keys():
-			if (not Parts.parts[TYPE_LG].has_key(part)):
+			if (part not in Parts.parts[TYPE_LG]):
 #####
 ##
 				#warn about unrecognized part
