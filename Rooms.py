@@ -7,20 +7,22 @@ from Constants import *
 
 MATERIALS = 'materials'
 ENCLOSURE = 'enclosure'
-ENCLOSURE_NONE = 'none'
-ENCLOSURE_PLATFORM = 'platform'
-ENCLOSURE_FULL = 'full'
-ENCLOSURE_SEALED = 'sealed'
 DOORS = 'doors'
 WINDOWS = 'windows'
 PARTS = 'parts'
-PART_MIN = 'min'
-PART_MAX = 'max'
 
 DEFAULTS = {
 	MATERIALS:	"Interior Wall",
 	ENCLOSURE:	ENCLOSURE_FULL,
 	DOORS:		.5,
+	WINDOWS:	0,
+}
+
+EXTERIOR = "Exterior"
+EXTERIOR_CONFIG = {
+	MATERIALS:	{"Light Armor": 1},
+	ENCLOSURE:	{ENCLOSURE_NONE: 1},
+	DOORS:		0,
 	WINDOWS:	0,
 }
 
@@ -88,6 +90,7 @@ def init():
 	Parts.init()
 	configPath = os.path.join(os.path.dirname(__file__), "data", "rooms.cfg")
 	configDict = ConfigFile.readFile(configPath)
+	rooms[EXTERIOR] = Room(EXTERIOR_CONFIG)
 	for roomName in configDict.keys():
 		if (type(configDict[roomName]) != type({})):
 			continue

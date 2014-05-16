@@ -11,14 +11,7 @@ from Constants import *
 
 MATERIALS = 'materials'
 ENCLOSURE = 'enclosure'
-ENCLOSURE_NONE = 'none'
-ENCLOSURE_PLATFORM = 'platform'
-ENCLOSURE_FULL = 'full'
-ENCLOSURE_SEALED = 'sealed'
 SYMMETRY = 'symmetry'
-SYMMETRY_NONE = 'none'
-SYMMETRY_PARTIAL = 'partial'
-SYMMETRY_FULL = 'full'
 ACCEL = 'accel'
 ACCEL_MIN = 'min'
 ACCEL_MAX = 'max'
@@ -29,12 +22,8 @@ TURN_MIN = 'min'
 TURN_MAX = 'max'
 PARTS = 'parts'
 PART_DISTRIBUTION = 'dist'
-PART_MIN = 'min'
-PART_MAX = 'max'
 ROOMS = 'rooms'
 ROOM_DISTRIBUTION = 'dist'
-ROOM_MIN = 'min'
-ROOM_MAX = 'max'
 
 DEFAULTS = {
 	MATERIALS:	"Light Armor",
@@ -53,6 +42,7 @@ class ShipClass:
 		self.shipType = shipType
 		if (not Parts.parts.has_key(TYPE_SIZES[self.shipType])):
 			raise Exception("No parts available for ship type %s" % self.shipType)
+		self.size = TYPE_SIZES[self.shipType]
 
 		materialSum = 0
 		self.materials = {}
@@ -123,7 +113,7 @@ class ShipClass:
 
 		self.parts = {}
 		for part in configDict.get(PARTS, {}).keys():
-			if (not Parts.parts[TYPE_SIZES[self.shipType]].has_key(part)):
+			if (not Parts.parts[self.size].has_key(part)):
 #####
 ##
 				#warn about unrecognized part
@@ -241,6 +231,7 @@ class ShipClass:
 		accelFactorFwd = random.uniform(self.accel[ACCEL_FWD], 1)
 		accelFactorLat = random.uniform(self.accel[ACCEL_LAT], accelFactorFwd)
 		turn = random.uniform(self.turn[TURN_MIN], self.turn[TURN_MAX])
+		# select parts and rooms
 		partCounts = {}
 		for part in self.parts.keys():
 			n = Dists.dists[self.parts[part][PART_DISTRIBUTION]].getCount()
@@ -260,8 +251,57 @@ class ShipClass:
 			if (n > 0):
 				roomCounts[room] = n
 		self.fixCounts(partCounts, roomCounts)
+		roomCounts[Rooms.EXTERIOR] = 1
+		# assign parts to rooms
+		rooms = {}
+		for room in roomCounts.keys():
+			if (roomCounts[room] <= 0):
+				continue
+			rooms[room] = []
+			for i in xrange(roomCounts[room]):
+				roomDict = {}
+				for (part, partDict) in Rooms.rooms[room].parts.items():
+					roomDict[part] = partDict[PART_MIN]
+					partCounts[part] -= roomDict[part]
+				rooms[room].append(roomDict)
+		for part in partCounts.keys():
+			if (partCounts[part] <= 0):
+				continue
+			probSum = 0
+			probDict = {}
+			for (room, prob) in Parts.parts[self.size][part].rooms.items():
+				if ((prob > 0) and (rooms.has_key(room))):
+					probDict[room] = prob
+					probSum += prob
+			if (probSum > 0):
+				# normalize probabilities
+				for room in probDict.keys():
+					probDict[room] /= probSum
+			while ((probDict) and (partCounts[part] > 0)):
+				room = Util.randomDict(probDict)
+				maxCount = Rooms.rooms[room].parts.get(part, {}).get(PART_MAX)
+				roomList = [r for r in rooms[room] if (maxCount is None) or (r.get(part, 0) < maxCount)]
+				if (not roomList):
+					# remove room from probDict, renormalizing first
+					probSum = 1 - probDict[room]
+					if (probSum <= 0):
+						break
+					for r in probDict.keys():
+						probDict[r] /= probSum
+					del probDict[room]
+					continue
+				roomDict = random.choice(roomList)
+				roomDict[part] = roomDict.get(part, 0) + 1
+				partCounts[part] -= 1
+		# dump remaining unassigned parts into "general parts" pseudo-room
+		generalParts = {}
+		for part in partCounts.keys():
+			if (partCounts[part] > 0):
+				generalParts[part] = partCounts[part]
 #####
 ##
+		#add gyros/engines/reactors
+		#finalize layout
 		#...
 		print "material: %s"%material
 		print "enclosure: %s"%enclosure
@@ -270,6 +310,8 @@ class ShipClass:
 		print "turn: %s"%turn
 		print "parts: %s"%partCounts
 		print "rooms: %s"%roomCounts
+		print "part assignments: %s"%rooms
+		print "unassigned parts: %s"%generalParts
 ##
 #####
 

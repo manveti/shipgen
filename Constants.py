@@ -6,3 +6,15 @@ TYPES = set(TYPE_ABBRS.keys())
 
 TYPE_SIZES = {TYPE_SM: TYPE_SM, TYPE_LG: TYPE_LG, TYPE_ST: TYPE_LG}
 SIZES = set(TYPE_SIZES.values())
+
+ENCLOSURE_NONE = 'none'
+ENCLOSURE_PLATFORM = 'platform'
+ENCLOSURE_FULL = 'full'
+ENCLOSURE_SEALED = 'sealed'
+SYMMETRY_NONE = 'none'
+SYMMETRY_PARTIAL = 'partial'
+SYMMETRY_FULL = 'full'
+PART_MIN = 'min'
+PART_MAX = 'max'
+ROOM_MIN = 'min'
+ROOM_MAX = 'max'
