@@ -191,6 +191,48 @@ class ShipClass:
 					if (x >= 0):
 						self.rooms[room][key] = x
 
+	def fixCounts(self, partCounts, roomCounts):
+		# first pass: each room individually
+		partMins = {}
+		for room in roomCounts.keys():
+			for (part, partDict) in Rooms.rooms[room].parts.items():
+				if ((roomCounts[room] * partDict[PART_MIN]) > partCounts.get(part, 0)):
+					# reduce room count (to minimum of self.rooms[room][ROOM_MIN])
+					roomCounts[room] = max(int(partCounts.get(part, 0) / partDict[PART_MIN]), self.rooms[room][ROOM_MIN])
+				if ((roomCounts[room] * partDict[PART_MIN]) > partCounts.get(part, 0)):
+					# increase part count (to maximum of self.parts[part][PART_MAX])
+					partCounts[part] = min(roomCounts[room] * partDict[PART_MIN], self.parts[part][PART_MAX])
+				if ((roomCounts[room] * partDict[PART_MIN]) > partCounts.get(part, 0)):
+					# insufficient parts to meet room requirements; remove room
+					roomCounts[room] = 0
+					break
+				partMins[part] = partMins.get(part, 0) + (roomCounts[room] * partDict[PART_MIN])
+
+		# second pass: all rooms together
+		for part in partMins.keys():
+			tryReduce = True
+			while ((partMins[part] > partCounts.get(part, 0)) and (tryReduce)):
+				# reduce count of all affected rooms with count > self.rooms[room][ROOM_MIN]
+				tryReduce = False
+				for room in roomCounts.keys():
+					if ((Rooms.rooms[room].parts.get(part, 0) > 0) and (roomCounts[room] > self.rooms[room][ROOM_MIN])):
+						tryReduce = True
+						roomCounts[room] -= 1
+						for (roomPart, roomPartDict) in Rooms.rooms[room].parts.items():
+							partMins[roomPart] -= roomPartDict[PART_MIN]
+			if (partMins[part] > partCounts.get(part, 0)):
+				# increase part count (to maximum of self.parts[part][PART_MAX])
+				partCounts[part] = min(roomCounts[room] * partDict[PART_MIN], self.parts[part][PART_MAX])
+			if (partMins[part] > partCounts.get(part, 0)):
+				# insufficient parts to meet room requirements; remove highest-count room until requirements met
+				affectedRooms = [(room, roomCounts[room] * Rooms.rooms[room].parts.get(part, 0)) for room in roomCounts.keys()]
+				affectedRooms.sort(key=lambda t: t[1])
+				while (partMins[part] > partCounts.get(part, 0)):
+					(room, partCount) = affectedRooms.pop(0)
+					for (roomPart, roomPartDict) in Rooms.rooms[room].parts.items():
+						partMins[roomPart] -= roomPartDict[PART_MIN] * roomCounts[room]
+					roomCounts[room] = 0
+
 	def generateShip(self):
 		material = Util.randomDict(self.materials)
 		enclosure = Util.randomDict(self.enclosure)
@@ -215,20 +257,11 @@ class ShipClass:
 				n = self.rooms[room][ROOM_MIN]
 			if ((self.rooms[room].has_key(ROOM_MAX)) and (n > self.rooms[room][ROOM_MAX])):
 				n = self.rooms[room][ROOM_MAX]
-#####
-##
-			#if insufficient parts for room, reduce n (to min of self.rooms[room][ROOM_MIN])
-			#if still insufficient parts for room, increase part count (to maximum of self.parts[part][PART_MAX])
-			#if still insufficient parts, n=0
-##
-#####
 			if (n > 0):
 				roomCounts[room] = n
+		self.fixCounts(partCounts, roomCounts)
 #####
 ##
-		#if insufficient parts for all rooms, reduce count of all affected rooms with count > self.rooms[room][ROOM_MIN]
-		#if still insufficient parts for all rooms, increase part count (to maximum of self.parts[part][PART_MAX])
-		#if still insufficient parts, remove random affected room until sufficient parts
 		#...
 		print "material: %s"%material
 		print "enclosure: %s"%enclosure
