@@ -40,7 +40,7 @@ classes = {}
 class ShipClass:
 	def __init__(self, shipType, configDict):
 		self.shipType = shipType
-		if (not Parts.parts.has_key(TYPE_SIZES[self.shipType])):
+		if (TYPE_SIZES[self.shipType] not in Parts.parts):
 			raise Exception("No parts available for ship type %s" % self.shipType)
 		self.size = TYPE_SIZES[self.shipType]
 
@@ -113,7 +113,7 @@ class ShipClass:
 
 		self.parts = {}
 		for part in configDict.get(PARTS, {}).keys():
-			if (not Parts.parts[self.size].has_key(part)):
+			if (part not in Parts.parts[TYPE_SIZES[self.shipType]]):
 #####
 ##
 				#warn about unrecognized part
@@ -130,9 +130,9 @@ class ShipClass:
 					partDict[PART_DISTRIBUTION] = partConfig[1 : idx]
 					partConfig = partConfig[idx + 1:]
 			partConfig = [x for x in partConfig.split() if x]
-			if (not partDict.has_key(PART_DISTRIBUTION)):
+			if (PART_DISTRIBUTION not in partDict):
 				partDict[PART_DISTRIBUTION] = partConfig.pop(0)
-			if (not Dists.dists.has_key(partDict[PART_DISTRIBUTION])):
+			if (partDict[PART_DISTRIBUTION] not in Dists.dists):
 #####
 ##
 				#warn about unrecognized distribution
@@ -148,7 +148,7 @@ class ShipClass:
 
 		self.rooms = {}
 		for room in configDict.get(ROOMS, {}).keys():
-			if (not Rooms.rooms.has_key(room)):
+			if (room not in Rooms.rooms):
 #####
 ##
 				#warn about unrecognized room
@@ -165,9 +165,9 @@ class ShipClass:
 					roomDict[ROOM_DISTRIBUTION] = roomConfig[1 : idx]
 					roomConfig = roomConfig[idx + 1:].strip()
 			roomConfig = [x for x in roomConfig.split() if x]
-			if (not roomDict.has_key(ROOM_DISTRIBUTION)):
+			if (ROOM_DISTRIBUTION not in roomDict):
 				roomDict[ROOM_DISTRIBUTION] = roomConfig.pop(0)
-			if (not Dists.dists.has_key(roomDict[ROOM_DISTRIBUTION])):
+			if (roomDict[ROOM_DISTRIBUTION] not in Dists.dists):
 #####
 ##
 				#warn about unrecognized distribution
@@ -235,18 +235,18 @@ class ShipClass:
 		partCounts = {}
 		for part in self.parts.keys():
 			n = Dists.dists[self.parts[part][PART_DISTRIBUTION]].getCount()
-			if ((self.parts[part].has_key(PART_MIN)) and (n < self.parts[part][PART_MIN])):
+			if (PART_MIN in self.parts[part] and n < self.parts[part][PART_MIN]):
 				n = self.parts[part][PART_MIN]
-			if ((self.parts[part].has_key(PART_MAX)) and (n > self.parts[part][PART_MAX])):
+			if (PART_MAX in self.parts[part] and n > self.parts[part][PART_MAX]):
 				n = self.parts[part][PART_MAX]
 			if (n > 0):
 				partCounts[part] = n
 		roomCounts = {}
 		for room in self.rooms.keys():
 			n = Dists.dists[self.rooms[room][ROOM_DISTRIBUTION]].getCount()
-			if ((self.rooms[room].has_key(ROOM_MIN)) and (n < self.rooms[room][ROOM_MIN])):
+			if (ROOM_MIN in self.rooms[room] and n < self.rooms[room][ROOM_MIN]):
 				n = self.rooms[room][ROOM_MIN]
-			if ((self.rooms[room].has_key(ROOM_MAX)) and (n > self.rooms[room][ROOM_MAX])):
+			if (ROOM_MAX in self.rooms[room] and n > self.rooms[room][ROOM_MAX]):
 				n = self.rooms[room][ROOM_MAX]
 			if (n > 0):
 				roomCounts[room] = n

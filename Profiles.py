@@ -15,7 +15,7 @@ class Profile:
 		classSum = 0
 		self.classes = {}
 		for shipType in TYPES:
-			if (not Classes.classes.has_key(shipType)):
+			if (shipType not in Classes.classes):
 #####
 ##
 				#warn about unrecognized ship type
@@ -23,7 +23,7 @@ class Profile:
 #####
 				continue
 			for shipClass in configDict.get(shipType, {}).keys():
-				if (not Classes.classes[shipType].has_key(shipClass)):
+				if (shipClass not in Classes.classes[shipType]):
 #####
 ##
 					#warn about unrecognized ship class
@@ -42,9 +42,9 @@ class Profile:
 
 	def generateShip(self):
 		(shipType, shipClass) = Util.randomDict(self.classes)
-		if (not Classes.classes.has_key(shipType)):
+		if (shipType not in Classes.classes):
 			raise Exception("Unrecognized ship type: %s" % shipType)
-		if (not Classes.classes[shipType].has_key(shipClass)):
+		if (shipClass not in Classes.classes[shipType]):
 			raise Exception("Unrecognized ship class: %s" % shipClass)
 		return Classes.classes[shipType][shipClass].generateShip()
 
@@ -66,6 +66,6 @@ def generateShip(profile=None):
 	init()
 	if (profile is None):
 		profile = random.choice(profiles.keys())
-	if (not profiles.has_key(profile)):
+	if (profile not in profiles):
 		raise Exception("Invalid profile: %s" % profile)
 	return profiles[profile].generateShip()
