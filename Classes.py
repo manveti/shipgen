@@ -38,6 +38,10 @@ DEFAULTS = {
 
 THRUST_DIRECTION_COUNTS = {ACCEL: 1, ACCEL_FWD: 1, ACCEL_LAT: 4}
 
+COMPROMISE_THRESHOLD = 3
+COMPROMISE_FACTOR = .9
+COMPROMISE_POWER = {POWER_MAX: POWER_HIGH, POWER_HIGH: POWER_STD, POWER_STD: POWER_MIN}
+
 
 initialized = False
 classes = {}
@@ -304,6 +308,12 @@ class ShipClass:
 			if (Parts.parts[self.size][part].power > maxPartPower):
 			    maxPartPower = Parts.parts[self.size][part].power
 		# assign parts to rooms
+#####
+##
+#make sure exterior room doesn't take over more than it should
+#  maybe normalize room probabilities in Rooms; Util.randomDict will return None for the unclaimed part of the probability range
+##
+#####
 		rooms = {}
 		for room in roomCounts.keys():
 			if (roomCounts[room] <= 0):
@@ -362,21 +372,45 @@ class ShipClass:
 		reactorsMass = 0
 		reactorsPower = 0
 		needsWork = True
+		iterations = 0
 		while (needsWork):
-#####
-##
-#need logic in this loop to ensure we don't go crazy; give up on fully meeting thrust/turn requirements after a few passes
-##
-#####
 			needsWork = False
 			# generate layout
+			structureMass = 0
 #####
 ##
 			#generate layout
-			# determine mass
-			mass = partsMass + sum(m for m in thrustersMass.values()) + gyrosMass + reactorsMass #+ $structure_mass
 ##
 #####
+			# after a few tries, accept that the peformance we want may not be possible with the parts we have
+			if (iterations > COMPROMISE_THRESHOLD):
+				if ((accel > self.accel[ACCEL_MIN]) or (turn > self.turn[TURN_MIN])):
+					# reduce acceleration and turning if there's room to do so
+					accel = max(accel * COMPROMISE_FACTOR, self.accel[ACCEL_MIN])
+					turn = max(turn * COMPROMISE_FACTOR, self.turn[TURN_MIN])
+				elif ((accelFactorFwd > self.accel[ACCEL_FWD]) or (accelFactorLat > self.accel[ACCEL_LAT])):
+					# reduce lateral and forward-facing thrust factors if there's room to do so
+					accelFactorLat = max(accelFactorLat * COMPROMISE_FACTOR, self.accel[ACCEL_LAT])
+					accelFactorFwd = max(accelFactorFwd * COMPROMISE_FACTOR, self.accel[ACCEL_FWD], accelFactorLat)
+				else:
+					# reduce power requirements if there's room
+					p = power
+					while (p in COMPROMISE_POWER):
+						p = COMPROMISE_POWER[self.power]
+						if (self.power.get(p, 0) > 0):
+							power = p
+							break
+					if (p not in COMPROMISE_POWER):
+						# no room to reduce power requirements; the ship's as good as it's going to get
+#####
+##
+						#warn about underperforming ship
+##
+#####
+						break
+			iterations += 1
+			# determine mass
+			mass = partsMass + structureMass + sum(m for m in thrustersMass.values()) + gyrosMass + reactorsMass
 			# add thrusters if necessary
 			thrustReq = {ACCEL: mass * accel}
 			thrustReq[ACCEL_FWD] = thrustReq[ACCEL] * accelFactorFwd
