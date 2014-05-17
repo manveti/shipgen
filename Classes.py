@@ -1,3 +1,4 @@
+import math
 import os.path
 import random
 
@@ -20,6 +21,7 @@ ACCEL_LAT = 'lat'
 TURN = 'turn'
 TURN_MIN = 'min'
 TURN_MAX = 'max'
+POWER = 'power'
 PARTS = 'parts'
 PART_DISTRIBUTION = 'dist'
 ROOMS = 'rooms'
@@ -31,7 +33,11 @@ DEFAULTS = {
 	SYMMETRY:	SYMMETRY_NONE,
 	ACCEL:		{ACCEL_MIN: 1, ACCEL_MAX: 5, ACCEL_FWD: .5, ACCEL_LAT: .5},
 	TURN:		{TURN_MIN: 1, TURN_MAX: 5},
+	POWER:		POWER_STD,
 }
+
+THRUST_DIRECTION_COUNTS = {ACCEL: 1, ACCEL_FWD: 1, ACCEL_LAT: 4}
+
 
 initialized = False
 classes = {}
@@ -40,9 +46,9 @@ classes = {}
 class ShipClass:
 	def __init__(self, shipType, configDict):
 		self.shipType = shipType
-		if (TYPE_SIZES[self.shipType] not in Parts.parts):
-			raise Exception("No parts available for ship type %s" % self.shipType)
 		self.size = TYPE_SIZES[self.shipType]
+		if (self.size not in Parts.parts):
+			raise Exception("No parts available for ship type %s" % self.shipType)
 
 		materialSum = 0
 		self.materials = {}
@@ -110,6 +116,19 @@ class ShipClass:
 			self.turn[TURN_MIN] = 0
 		if (self.turn[TURN_MAX] < self.turn[TURN_MIN]):
 			self.turn[TURN_MAX] = self.turn[TURN_MIN]
+
+		powerSum = 0
+		self.power = {}
+		for powerType in [POWER_MIN, POWER_STD, POWER_HIGH, POWER_MAX]:
+			self.power[powerType] = float(configDict.get(POWER, {}).get(powerType, 0))
+			powerSum += self.power[powerType]
+		if (powerSum > 0):
+			# normalize probabilities
+			for powerType in self.power.keys():
+				self.power[powerType] /= powerSum
+		else:
+			# no valid power types; use default
+			self.power = {DEFAULTS[POWER]: 1}
 
 		self.parts = {}
 		for part in configDict.get(PARTS, {}).keys():
@@ -228,9 +247,31 @@ class ShipClass:
 		enclosure = Util.randomDict(self.enclosure)
 		symmetry = Util.randomDict(self.symmetry)
 		accel = random.uniform(self.accel[ACCEL_MIN], self.accel[ACCEL_MAX])
+		if (not Parts.thrusters[self.size]):
+#####
+##
+			# warn about no thrusters of appropriate size
+##
+#####
+			accel = 0
 		accelFactorFwd = random.uniform(self.accel[ACCEL_FWD], 1)
 		accelFactorLat = random.uniform(self.accel[ACCEL_LAT], accelFactorFwd)
 		turn = random.uniform(self.turn[TURN_MIN], self.turn[TURN_MAX])
+		if (not Parts.gyros[self.size]):
+#####
+##
+			# warn about no gyros of appropriate size
+##
+#####
+			turn = 0
+		power = Util.randomDict(self.power)
+		if (not Parts.reactors[self.size]):
+#####
+##
+			# warn about no reactors of appropriate size
+##
+#####
+			power = None
 		# select parts and rooms
 		partCounts = {}
 		for part in self.parts.keys():
@@ -252,6 +293,16 @@ class ShipClass:
 				roomCounts[room] = n
 		self.fixCounts(partCounts, roomCounts)
 		roomCounts[Rooms.EXTERIOR] = 1
+		partsMass = 0
+		partsPower = 0
+		maxPartPower = 0
+		for part in partCounts.keys():
+			if (part not in Parts.parts[self.size]):
+				continue
+			partsMass += Parts.parts[self.size][part].mass * partCounts[part]
+			partsPower += Parts.parts[self.size][part].power * partCounts[part]
+			if (Parts.parts[self.size][part].power > maxPartPower):
+			    maxPartPower = Parts.parts[self.size][part].power
 		# assign parts to rooms
 		rooms = {}
 		for room in roomCounts.keys():
@@ -298,20 +349,131 @@ class ShipClass:
 		for part in partCounts.keys():
 			if (partCounts[part] > 0):
 				generalParts[part] = partCounts[part]
+		# generate layout and add thrusters, gyros, and reactors
+		thrusters = {}
+		thrustersMass = {}
+		thrustersThrust = {}
+		thrustersPower = {}
+		gyros = {}
+		gyrosMass = 0
+		gyrosTurn = 0
+		gyrosPower = 0
+		reactors = {}
+		reactorsMass = 0
+		reactorsPower = 0
+		needsWork = True
+		while (needsWork):
 #####
 ##
-		#add gyros/engines/reactors
-		#finalize layout
+#need logic in this loop to ensure we don't go crazy; give up on fully meeting thrust/turn requirements after a few passes
+##
+#####
+			needsWork = False
+			# generate layout
+#####
+##
+			#generate layout
+			# determine mass
+			mass = partsMass + sum(m for m in thrustersMass.values()) + gyrosMass + reactorsMass #+ $structure_mass
+##
+#####
+			# add thrusters if necessary
+			thrustReq = {ACCEL: mass * accel}
+			thrustReq[ACCEL_FWD] = thrustReq[ACCEL] * accelFactorFwd
+			thrustReq[ACCEL_LAT] = thrustReq[ACCEL] * accelFactorLat
+			for d in thrustReq.keys():
+				if (thrustersThrust.get(d, 0) < thrustReq[d]):
+					needsWork = True
+					# remove existing thrusters to realize efficiency gains from larger thrusters
+					thrusters[d] = {}
+					thrustersMass[d] = 0
+					thrustersThrust[d] = 0
+					thrustersPower[d] = 0
+					# add necessary thrusters
+					while (thrustReq[d] > 0):
+						for thruster in Parts.thrusters.get(self.size, []):
+							if (thruster.thrust > thrustReq[d]):
+								break
+						n = max(int(math.ceil(thrustReq[d] / thruster.thrust)), 1)
+						thrusters[d][thruster] = thrusters[d].get(thruster, 0) + n
+						thrustersMass[d] += n * thruster.mass * THRUST_DIRECTION_COUNTS[d]
+						thrustersThrust[d] += n * thruster.thrust
+						thrustersPower[d] += n * thruster.power * THRUST_DIRECTION_COUNTS[d]
+						thrustReq[d] -= n * thruster.thrust
+			# add gyros if necessary
+			turnReq = mass * turn
+			if (gyrosTurn < turnReq):
+				needsWork = True
+				# remove existing gyros to realize efficiency gains from larger gyros
+				gyros = {}
+				gyrosMass = 0
+				gyrosTurn = 0
+				gyrosPower = 0
+				# add necessary gyros
+				while (turnReq > 0):
+					for gyro in Parts.gyros.get(self.size, []):
+						if (gyro.turn > turnReq):
+							break
+					n = max(int(math.ceil(turnReq / gyro.turn)), 1)
+					gyros[gyro] = gyros.get(gyro, 0) + n
+					gyrosMass += n * gyro.mass
+					gyrosTurn += n * gyro.turn
+					gyrosPower += n * gyro.power
+					turnReq -= n * gyro.turn
+			# add reactors if necessary
+			if (power == POWER_MIN):
+				# largest of: 150% of aft-facing thrusters, all gyros, largest single part
+				powerReq = max(1.5 * thrustersPower[ACCEL], gyrosPower, maxPartPower)
+			elif (power == POWER_STD):
+				# largest of: 150% of aft and single lateral thrusters, 150% of aft thrusters and all gyros, all parts
+				powerReq = max(1.5 * (thrustersPower[ACCEL] + thrustersPower[ACCEL_LAT]),
+						1.5 * thrustersPower[ACCEL] + gyrosPower, partsPower)
+			elif (power == POWER_HIGH):
+				# largest of: 150% of aft and two lateral thrusters, 150% of aft and single lateral thrusters and all gyros,
+				# 100% of aft-facing thrusters plus all gyros and all parts
+				powerReq = max(1.5 * (thrustersPower[ACCEL] + 2 * thrustersPower[ACCEL_LAT]),
+						1.5 * (thrustersPower[ACCEL] + thrustersPower[ACCEL_LAT]) + gyrosPower,
+						thrustersPower[ACCEL] + gyrosPower + partsPower)
+			elif (power == POWER_MAX):
+				# 150% of aft and two lateral thrusters plus all gyros and all parts
+				powerReq = 1.5 * (thrustersPower[ACCEL] + 2 * thrustersPower[ACCEL_LAT]) + gyrosPower + partsPower
+			else:
+				# no power requirements, so zero
+				powerReq = 0
+			if (reactorsPower < powerReq):
+				needsWork = True
+				# remove existing reactors to realize efficiency gains from larger reactors
+				reactors = {}
+				reactorsMass = 0
+				reactorsPower = 0
+				# add necessary reactors
+				while (powerReq > 0):
+					# note reversal of signs below, as reactor.power is negative
+					for reactor in Parts.reactors.get(self.size, []):
+						if (-reactor.power > powerReq):
+							break
+					n = max(int(math.ceil(powerReq / -reactor.power)), 1)
+					reactors[reactor] = reactors.get(reactor, 0) + n
+					reactorsMass += n * reactor.mass
+					reactorsPower -= n * reactor.power
+					powerReq += n * reactor.power
+#####
+##
 		#...
 		print "material: %s"%material
 		print "enclosure: %s"%enclosure
 		print "symmetry: %s"%symmetry
 		print "accel: %s (%s, %s)"%(accel,accelFactorFwd,accelFactorLat)
 		print "turn: %s"%turn
-		print "parts: %s"%partCounts
-		print "rooms: %s"%roomCounts
+		print "power: %s"%power
+		print "parts mass: %s"%partsMass
 		print "part assignments: %s"%rooms
 		print "unassigned parts: %s"%generalParts
+		print "thrusters: %s"%thrusters
+		print "accel: %s (%s, %s)"%(thrustersThrust[ACCEL]/mass,thrustersThrust[ACCEL_FWD]/mass,thrustersThrust[ACCEL_LAT]/mass)
+		print "gyros: %s (turn: %s)"%(gyros,gyrosTurn/mass)
+		print "reactors: %s (power: %s)"%(reactors,reactorsPower)
+		print "mass: %s"%mass
 ##
 #####
 

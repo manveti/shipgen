@@ -12,6 +12,8 @@ part:
   type (small ship/large ship/station)
   mass
   power consumption (negative for reactors)
+  thrust
+  turn
   size
   attachment points (all if unspecified)
   cargo doors
