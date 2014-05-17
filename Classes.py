@@ -113,7 +113,7 @@ class ShipClass:
 
 		self.parts = {}
 		for part in configDict.get(PARTS, {}).keys():
-			if (part not in Parts.parts[TYPE_SIZES[self.shipType]]):
+			if (part not in Parts.parts[self.size]):
 #####
 ##
 				#warn about unrecognized part
@@ -235,18 +235,18 @@ class ShipClass:
 		partCounts = {}
 		for part in self.parts.keys():
 			n = Dists.dists[self.parts[part][PART_DISTRIBUTION]].getCount()
-			if (PART_MIN in self.parts[part] and n < self.parts[part][PART_MIN]):
+			if ((PART_MIN in self.parts[part]) and (n < self.parts[part][PART_MIN])):
 				n = self.parts[part][PART_MIN]
-			if (PART_MAX in self.parts[part] and n > self.parts[part][PART_MAX]):
+			if ((PART_MAX in self.parts[part]) and (n > self.parts[part][PART_MAX])):
 				n = self.parts[part][PART_MAX]
 			if (n > 0):
 				partCounts[part] = n
 		roomCounts = {}
 		for room in self.rooms.keys():
 			n = Dists.dists[self.rooms[room][ROOM_DISTRIBUTION]].getCount()
-			if (ROOM_MIN in self.rooms[room] and n < self.rooms[room][ROOM_MIN]):
+			if ((ROOM_MIN in self.rooms[room]) and (n < self.rooms[room][ROOM_MIN])):
 				n = self.rooms[room][ROOM_MIN]
-			if (ROOM_MAX in self.rooms[room] and n > self.rooms[room][ROOM_MAX]):
+			if ((ROOM_MAX in self.rooms[room]) and (n > self.rooms[room][ROOM_MAX])):
 				n = self.rooms[room][ROOM_MAX]
 			if (n > 0):
 				roomCounts[room] = n
