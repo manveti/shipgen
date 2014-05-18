@@ -311,12 +311,6 @@ class ShipClass:
 			if (Parts.parts[self.size][part].power > maxPartPower):
 			    maxPartPower = Parts.parts[self.size][part].power
 		# assign parts to rooms
-#####
-##
-#make sure exterior room doesn't take over more than it should
-#  maybe normalize room probabilities in Rooms; Util.randomDict will return None for the unclaimed part of the probability range
-##
-#####
 		rooms = {}
 		for room in roomCounts.keys():
 			if (roomCounts[room] <= 0):
@@ -357,6 +351,11 @@ class ShipClass:
 				roomDict = random.choice(roomList)
 				roomDict[part] = roomDict.get(part, 0) + 1
 				partCounts[part] -= 1
+#####
+##
+		#balance rooms if symmetry requires it
+##
+#####
 		# dump remaining unassigned parts into "Interior" pseudo-room
 		for part in partCounts.keys():
 			if (partCounts[part] > 0):
@@ -381,7 +380,7 @@ class ShipClass:
 			structureMass = 0
 #####
 ##
-			#generate layout
+			#generate layout (material, enclosure, symmetry, rooms, thrusters, gyros, reactors)
 ##
 #####
 			# after a few tries, accept that the peformance we want may not be possible with the parts we have

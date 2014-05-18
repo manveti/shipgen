@@ -20,6 +20,9 @@ def layoutShip(material, enclosure, symmetry, rooms, thrusters, gyros, reactors)
 	nonBridgeRooms = []
 	partsVol = 0
 	minHeight = 0
+#####
+##
+#if symmetry enabled, add rooms in (pseudo-)symmetric pairs if possible; track pairs below
 	for room in rooms.keys():
 		if (room == Rooms.EXTERIOR):
 			continue
@@ -33,6 +36,8 @@ def layoutShip(material, enclosure, symmetry, rooms, thrusters, gyros, reactors)
 				partMin = min(Parts.parts[part].size)
 				if (partMin > minHeight):
 					minHeight = partMin
+##
+#####
 	# determine target dimensions
 	targetWidth = (partsVol * TARGET_WIDTH_FACTOR) ** (1.0 / 3)
 	targetHeight = max(targetWidth * TARGET_HEIGHT_FACTOR, minHeight)
@@ -41,8 +46,15 @@ def layoutShip(material, enclosure, symmetry, rooms, thrusters, gyros, reactors)
 	random.shuffle(nonBridgeRooms)
 #####
 ##
-	#place bridgeRooms at the front
-	#add nonBridgeRooms beside/behind/above/below
+	#loop:
+	#  grab next item from bridgeRooms + nonBridgeRooms
+	#  generate room layout, handling (pseudo-)symmetric pairs appropriately
+	#  if nothing placed yet: place front and center (possibly with a hallway between paired rooms)
+	#  elif room(s) from bridgeRooms: place beside/above/below existing rooms
+	#  else: place beside/behind/above/below existing rooms
+	#add doorways/doors between rooms
+	#add windows on outside faces
+	#finish off hull (replace outer room walls with hull material if latter is stronger)
 	#add "Exterior" parts
 ##
 #####
