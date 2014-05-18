@@ -297,6 +297,7 @@ class ShipClass:
 				roomCounts[room] = n
 		self.fixCounts(partCounts, roomCounts)
 		roomCounts[Rooms.EXTERIOR] = 1
+		roomCounts[Rooms.INTERIOR] = 1
 		partsMass = 0
 		partsPower = 0
 		maxPartPower = 0
@@ -354,11 +355,10 @@ class ShipClass:
 				roomDict = random.choice(roomList)
 				roomDict[part] = roomDict.get(part, 0) + 1
 				partCounts[part] -= 1
-		# dump remaining unassigned parts into "general parts" pseudo-room
-		generalParts = {}
+		# dump remaining unassigned parts into "Interior" pseudo-room
 		for part in partCounts.keys():
 			if (partCounts[part] > 0):
-				generalParts[part] = partCounts[part]
+				rooms[Rooms.INTERIOR][0][part] = partCounts[part]
 		# generate layout and add thrusters, gyros, and reactors
 		thrusters = {}
 		thrustersMass = {}
@@ -502,7 +502,6 @@ class ShipClass:
 		print "power: %s"%power
 		print "parts mass: %s"%partsMass
 		print "part assignments: %s"%rooms
-		print "unassigned parts: %s"%generalParts
 		print "thrusters: %s"%thrusters
 		print "accel: %s (%s, %s)"%(thrustersThrust[ACCEL]/mass,thrustersThrust[ACCEL_FWD]/mass,thrustersThrust[ACCEL_LAT]/mass)
 		print "gyros: %s (turn: %s)"%(gyros,gyrosTurn/mass)

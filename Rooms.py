@@ -25,6 +25,13 @@ EXTERIOR_CONFIG = {
 	DOORS:		0,
 	WINDOWS:	0,
 }
+INTERIOR = "Interior"
+INTERIOR_CONFIG = {
+	MATERIALS:	{"Interior Wall": 1},
+	ENCLOSURE:	{ENCLOSURE_NONE: 1},
+	DOORS:		0,
+	WINDOWS:	0,
+}
 
 
 initialized = False
@@ -91,6 +98,7 @@ def init():
 	configPath = os.path.join(os.path.dirname(__file__), "data", "rooms.cfg")
 	configDict = ConfigFile.readFile(configPath)
 	rooms[EXTERIOR] = Room(EXTERIOR_CONFIG)
+	rooms[INTERIOR] = Room(INTERIOR_CONFIG)
 	for roomName in configDict.keys():
 		if (type(configDict[roomName]) != type({})):
 			continue

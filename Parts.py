@@ -1,6 +1,7 @@
 import os.path
 
 import ConfigFile
+import Rooms
 
 from Constants import *
 
@@ -42,10 +43,14 @@ class Part:
 ##
 #####
 
+		interiorProb = 1
 		self.rooms = {}
 		for room in configDict.get(ROOMS, {}).keys():
 			self.rooms[room] = float(configDict[ROOMS][room])
+			interiorProb -= self.rooms[room]
 		# no need to normalize room affinities now; we'll do it once we know which rooms a ship has
+		if ((interiorProb > 0) and (Rooms.INTERIOR not in self.rooms)):
+			self.rooms[Rooms.INTERIOR] = interiorProb
 
 
 def prioritizeByEfficiency(l):
