@@ -26,7 +26,9 @@ gyros = {}
 
 
 class Part:
-	def __init__(self, configDict):
+	def __init__(self, partName, configDict):
+		self.name = partName
+
 		self.mass = float(configDict.get(MASS, 0))
 		self.power = float(configDict.get(POWER, 0))
 		self.thrust = float(configDict.get(THRUST, 0))
@@ -80,7 +82,7 @@ def init():
 		for partName in configDict.keys():
 			if (type(configDict[partName]) != type({})):
 				continue
-			parts[size][partName] = Part(configDict[partName])
+			parts[size][partName] = Part(partName, configDict[partName])
 			if (parts[size][partName].mass != 0):
 				if (parts[size][partName].power < 0):
 					allReactors.append((parts[size][partName], -parts[size][partName].power, parts[size][partName].mass))

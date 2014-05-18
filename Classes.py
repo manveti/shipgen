@@ -48,11 +48,13 @@ classes = {}
 
 
 class ShipClass:
-	def __init__(self, shipType, configDict):
+	def __init__(self, shipType, className, configDict):
 		self.shipType = shipType
 		self.size = TYPE_SIZES[self.shipType]
 		if (self.size not in Parts.parts):
 			raise Exception("No parts available for ship type %s" % self.shipType)
+
+		self.name = className
 
 		materialSum = 0
 		self.materials = {}
@@ -525,5 +527,5 @@ def init():
 		for className in configDict.keys():
 			if (type(configDict[className]) != type({})):
 				continue
-			classes[shipType][className] = ShipClass(shipType, configDict[className])
+			classes[shipType][className] = ShipClass(shipType, className, configDict[className])
 	initialized = True

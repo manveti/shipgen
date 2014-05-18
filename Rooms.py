@@ -39,9 +39,11 @@ rooms = {}
 
 
 class Room:
-	def __init__(self, configDict):
+	def __init__(self, roomName, configDict):
 		if (TYPE_LG not in Parts.parts):
 			raise Exception("No parts available for ship type %s" % TYPE_LG)
+
+		self.name = roomName
 
 		materialSum = 0
 		self.materials = {}
@@ -97,10 +99,10 @@ def init():
 	Parts.init()
 	configPath = os.path.join(os.path.dirname(__file__), "data", "rooms.cfg")
 	configDict = ConfigFile.readFile(configPath)
-	rooms[EXTERIOR] = Room(EXTERIOR_CONFIG)
-	rooms[INTERIOR] = Room(INTERIOR_CONFIG)
+	rooms[EXTERIOR] = Room(EXTERIOR, EXTERIOR_CONFIG)
+	rooms[INTERIOR] = Room(INTERIOR, INTERIOR_CONFIG)
 	for roomName in configDict.keys():
 		if (type(configDict[roomName]) != type({})):
 			continue
-		rooms[roomName] = Room(configDict)
+		rooms[roomName] = Room(roomName, configDict)
 	initialized = True
