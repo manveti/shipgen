@@ -26,6 +26,7 @@ room:
   enclosure affinities (none, floor, full, sealed)
   door probability
   window probability
+  free space factor
   part min/max requirements
 
 power levels:

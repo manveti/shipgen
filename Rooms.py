@@ -9,6 +9,7 @@ MATERIALS = 'materials'
 ENCLOSURE = 'enclosure'
 DOORS = 'doors'
 WINDOWS = 'windows'
+FREE = 'free'
 PARTS = 'parts'
 
 DEFAULTS = {
@@ -73,6 +74,17 @@ class Room:
 
 		self.doors = float(configDict.get(DOORS, DEFAULTS[DOORS]))
 		self.windows = float(configDict.get(WINDOWS, DEFAULTS[WINDOWS]))
+
+		self.free = {}
+		freeConfig = [float(x) for x in configDict.get(FREE, "").split() if x]
+		if ((len(freeConfig) > 0) and (freeConfig[0] > 0)):
+			self.free[FREE_MIN] = freeConfig[0]
+		else:
+			self.free[FREE_MIN] = 0
+		if ((len(freeConfig) > 1) and (freeConfig[1] >= self.free[FREE_MIN])):
+			self.free[FREE_MAX] = freeConfig[1]
+		else:
+			self.free[FREE_MAX] = self.free[FREE_MIN]
 
 		self.parts = {}
 		for part in configDict.get(PARTS, {}).keys():
