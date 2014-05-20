@@ -18,12 +18,14 @@ FWD = (0, -1, 0)
 AFT = (0, 1, 0)
 
 
-def addTuples(t1, t2):
-	return tuple(t1[i] + t2[i] for i in xrange(min(len(t1), len(t2))))
+def distSquared(p1, p2):
+	retval = 0
+	for i in xrange(min(len(p1), len(p2))):
+		retval += (p1[i] - p2[i]) * (p1[i] - p2[i])
+	return retval
 
 class Ship:
 	def __init__(self, targetSize):
-		self.targetSize = targetSize
 		self.targetEdges = {PORT: int(-targetSize[0] / 2), SBD: int(targetSize[0] / 2),
 							FWD: int(-targetSize[1] / 2), AFT: int(targetSize[1] / 2),
 							UP: int(targetSize[2] / 2), DOWN: int(-targetSize[2] / 2)}
@@ -32,7 +34,7 @@ class Ship:
 		self.potentialDoorways = set()
 		self.doorways = set()
 
-	def isFree(x0, y0, z0, w=1, l=1, h=1):
+	def getObstruction(self, x0, y0, z0, w=1, l=1, h=1):
 		for x in xrange(x0, x0 + w):
 			if (x not in self.occupied):
 				continue
@@ -41,8 +43,80 @@ class Ship:
 					continue
 				for z in xrange(z0, z0 + h):
 					if (z in self.occupied[x][y]):
-						return False
-		return True
+						return (x, y, z)
+		return None
+
+	def isFree(self, *args, **kwargs):
+		return (self.getObstruction(*args, **kwargs) is None)
+
+#####
+##
+#add handling for symmetry
+	def getRoomPos(self, roomSize, isBridge):
+		if (not self.occupied):
+			return [int(-roomSize[0] / 2), self.targetEdges[FWD], -2 * int(roomSize[2] / 4)]
+		if (isBridge):
+			center = (0, self.targetEdges[FWD] * 2, 0) # ahead of the ship so we'll favor the front face
+		else:
+			center = (0, 0, 0)
+		potentialPositions = set()
+		while (not potentialPositions):
+			minDSquared = None
+			for (doorPos, direction) in self.potentialDoorways:
+				# one dimension is fixed based on position and alignment of doorway
+				if (direction in [SBD, PRT]):
+					fixedIdx = 0
+				elif (direction in [FWD, AFT]):
+					fixedIdx = 1
+				else:
+					fixedIdx = 2
+				fixedVal = doorPos[fixedIdx] + sum(direction)
+				# search other two dimensions for closest open space to center
+				variableIdx = [i for i in xrange(3) if i != fixedIdx]
+				tryPos = [0, 0, 0]
+				tryPos[fixedIdx] = fixedVal
+				for i in xrange(len(variableIdx)):
+					idealPos = center[variableIdx[i]] - int(roomSize[variableIdx[i]] / 2)
+					minPos = doorPos[variableIdx[i]] - roomSize[variableIdx[i]]
+					maxPos = doorPos[variableIdx[i]]
+					tryPos[variableIdx[i]] = max(min(idealPos, maxPos), minPos)
+				tryPosList = [tryPos]
+				while (tryPosList):
+					tryPos = tryPosList.pop(0)
+					obstruction = self.getObstruction(*(tryPos + roomSize))
+					if (obstruction is None):
+						dSquared = distSquared(center, [float(tryPos[i] + roomSize[i]) / 2 for i in xrange(len(tryPos))])
+						potentialPositions.add((tryPos, dSquared))
+						if ((minDSquared is None) or (dSquared < minDSquared)):
+							minDSquared = dSquared
+						break
+					# obstruction prevents ideal placement, try moving away from center
+					newTryPos = []
+					for i in xrange(len(variableIdx)):
+						p = tryPos[:]
+						if (doorPos[variableIdx[i]] > obstruction[variableIdx[i]]):
+							p[variableIdx[i]] = obstruction[variableIdx[i]] + 1
+						elif (doorPos[variableIdx[i]] < obstruction[variableIdx[i]]):
+							p[variableIdx[i]] = obstruction[variableIdx[i]] - roomSize[variableIdx[i]]
+						else:
+							continue
+						newTryPos.append(p)
+					newTryPos.sort(key=lambda p: distSquared(p, center))
+					tryPosList += newTryPos
+			posChoices = [pos for (pos, dSquared) in potentialPositions if dSquared <= minDSquared]
+			if (posChoices):
+				return random.choice(posChoices)
+#####
+##
+			#try to find a position where a hall can be made from one of self.potentialDoors
+			#if potentialPositions: return best
+##
+#####
+			# couldn't place room; expand self.targetEdges and try again
+			for direction in self.targetEdges.keys():
+				self.targetEdges[direction] += sum(direction)
+##
+#####
 
 	def addRoom(self, room, partCounts, freeFactor, roomName, isBridge):
 		roomSize = [1, 1, 1]
@@ -58,107 +132,9 @@ class Ship:
 		roomArea = float(roomVolume) / roomSize[2]
 		roomSize[1] = max(math.ceil(math.sqrt(roomArea)), roomSize[1])
 		roomSize[0] = max(math.ceil(roomArea / roomSize[1]), roomSize[0])
-		if (not self.occupied):
-			roomPos = [int(-roomSize[0] / 2), self.targetEdges[FWD], -2 * int(roomSize[2] / 4)]
-		elif (isBridge):
-			potentialPositions = set()
-			minDSquared = None
-			for (doorPos, direction) in self.potentialDoorways:
-				y = max(self.targetEdges[FWD], doorPos[1] - roomSize[1])
-				if (direction in [SBD, PORT]):
-					if (direction == SBD):
-						x = doorPos[0] + 1
-						if (x + roomSize[0] > self.targetEdges[SBD]):
-							continue
-					else:
-						x = doorPos[0] - roomSize[0]
-						if (x < self.targetEdges[PORT]):
-							continue
-					bottom = doorPos[2]
-					top = doorPos[2] - roomSize[2] + 1
-					bottomDone = False
-					topDone = False
-					for i in xrange(roomSize[2] - 1):
-						if ((not bottomDone) and (doorPos[2] - i >= self.targetEdges[DOWN])):
-							if (self.isFree(x, y, doorPos[2] - i, roomSize[0], roomSize[1], 1)):
-								bottom = doorPos[2] - i
-							else:
-								bottomDone = True
-						if ((not topDone) and (doorPos[2] + i + roomSize[2] - 1 <= self.targetEdges[UP])):
-							if (self.isFree(x, y, doorPos[2] + i, roomSize[0], roomSize[1], 1)):
-								top = doorPos[2] + i
-							else:
-								topDone = True
-						if ((bottomDone) and (topDone)):
-							break
-					if (bottom & 1):
-						# make sure bottom is even (as doorPos[2] is)
-						bottom += 1
-					if (bottom >= top):
-						continue
-					z = min(abs(potentialZ) for potentialZ in xrange(bottom, top, 2))
-					if (direction == SBD):
-						dSquared = (doorPos[0] + 1) * (doorPos[0] + 1)
-					else:
-						dSquared = (doorPos[0] - 1) * (doorPos[0] - 1)
-					dSquared += (y - self.targetEdges[FWD]) * (y - self.targetEdges[FWD])
-					dSquared += (z + z + roomSize[2] - 1) * (z + z + roomSize[2] - 1) / 4
-					potentialPositions.add(((x, y, z), dSquared))
-					if ((minDSquared is None) or (dSquared < minDSquared)):
-						minDSquared = dSquared
-				elif (direction in [UP, DOWN]):
-					if (direction == UP):
-						z = doorPos[2] + 1
-						if (z + roomSize[2] > self.targetEdges[UP]):
-							continue
-					else:
-						z = doorPos[2] - roomSize[2]
-						if (z < targetEdges[DOWN]):
-							continue
-					left = doorPos[0]
-					right = doorPos[0] - roomSize[0] + 1
-					leftDone = False
-					rightDone = False
-					for i in xrange(roomSize[0] - 1):
-						if ((not leftDone) and (doorPos[0] - i >= self.targetEdges[LEFT])):
-							if (self.isFree(doorPos[0] - i, y, z, 1, roomSize[1], roomSize[2])):
-								left = doorPos[0] - i
-							else:
-								leftDone = True
-						if ((not rightDone) and (doorPos[0] + i + roomSize[0] - 1 <= self.targetEdges[RIGHT])):
-							if (self.isFree(doorPos[0] + i, y, z, 1, roomSize[1], roomSize[2])):
-								right = doorPos[0] + i
-							else:
-								rightDone = True
-						if ((leftDone) and (rightDone)):
-							break
-					if (left >= right):
-						continue
-					x = min(abs(potentialX) for potentialX in xrange(left, right))
-					dSquared = float(x + x + roomSize[0] - 1) * float(x + x + roomSize[0] - 1) / 4
-					if (direction == UP):
-						dSquared += (doorPos[2] + 1) * (doorPos[2] + 1)
-					else:
-						dSquared += (doorPos[2] - 1) * (doorPos[2] - 1)
-					dSquared += (y - self.targetEdges[FWD]) * (y - self.targetEdges[FWD])
-					potentialPositions.add(((x, y, z), dSquared))
-					if ((minDSquared is None) or (dSquared < minDSquared)):
-						minDSquared = dSquared
-				else:
-					continue
-			posChoices = [pos for (pos, dSquared) in potentialPositions if dSquared <= minDSquared]
+		roomPos = self.getRoomPos(roomSize, isBridge)
 #####
 ##
-			#if not posChoices: posChoices = list of new position choices
-##
-#####
-			roomPos = list(random.choice(posChoices))
-		else:
-#####
-##
-			#find closest point to (0,0,0) to place room
-			#roomPos = somewhere adjacent to existing rooms (pick based on self.targetSize)
-			pass
 		#generate room layout, handling (pseudo-)symmetric pairs appropriately
 		#  traverse reversed(sorted(partCounts.keys(), key=lambda p: tuple(reversed(Parts.parts[p].size)))) #g->l, h->l->w
 		#  use roomSize to guide general layout
