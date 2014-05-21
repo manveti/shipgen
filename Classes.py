@@ -6,6 +6,7 @@ import ConfigFile
 import Dists
 import Parts
 import Rooms
+import Ships
 import Util
 
 from Constants import *
@@ -322,44 +323,7 @@ class ShipClass:
 					roomDict[part] = partDict[PART_MIN]
 					partCounts[part] -= roomDict[part]
 				rooms[room].append(roomDict)
-		for part in partCounts.keys():
-			if (partCounts[part] <= 0):
-				continue
-			probSum = 0
-			probDict = {}
-			for (room, prob) in Parts.parts[self.size][part].rooms.items():
-				if ((prob > 0) and (rooms.has_key(room))):
-					probDict[room] = prob
-					probSum += prob
-			if (probSum > 0):
-				# normalize probabilities
-				for room in probDict.keys():
-					probDict[room] /= probSum
-			while ((probDict) and (partCounts[part] > 0)):
-				room = Util.randomDict(probDict)
-				maxCount = Rooms.rooms[room].parts.get(part, {}).get(PART_MAX)
-				roomList = [r for r in rooms[room] if (maxCount is None) or (r.get(part, 0) < maxCount)]
-				if (not roomList):
-					# remove room from probDict, renormalizing first
-					probSum = 1 - probDict[room]
-					if (probSum <= 0):
-						break
-					for r in probDict.keys():
-						probDict[r] /= probSum
-					del probDict[room]
-					continue
-				roomDict = random.choice(roomList)
-				roomDict[part] = roomDict.get(part, 0) + 1
-				partCounts[part] -= 1
-#####
-##
-		#balance rooms if symmetry requires it
-##
-#####
-		# dump remaining unassigned parts into "Interior" pseudo-room
-		for part in partCounts.keys():
-			if (partCounts[part] > 0):
-				rooms[Rooms.INTERIOR][0][part] = partCounts[part]
+		Ships.assignPartsToRooms(rooms, self.size, partCounts)
 		# generate layout and add thrusters, gyros, and reactors
 		thrusters = {}
 		thrustersMass = {}
@@ -380,7 +344,8 @@ class ShipClass:
 			structureMass = 0
 #####
 ##
-			#generate layout (material, enclosure, symmetry, rooms, thrusters, gyros, reactors)
+			#generate layout (self.size, material, enclosure, symmetry, rooms, thrusters, gyros, reactors)
+			Ships.layoutShip(self.size, material, enclosure, symmetry, rooms, thrusters, gyros, reactors)
 ##
 #####
 			# after a few tries, accept that the peformance we want may not be possible with the parts we have

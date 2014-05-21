@@ -1,8 +1,10 @@
+import copy
 import math
 import random
 
 import Parts
 import Rooms
+import Util
 
 from Constants import *
 
@@ -28,7 +30,8 @@ def addList(l1, l2):
 	return [l1[i] + l2[i] for i in xrange(min(len(l1), len(l2)))]
 
 class Ship:
-	def __init__(self, targetSize):
+	def __init__(self, shipSize, targetSize):
+		self.size = shipSize
 		self.targetEdges = {PORT: int(-targetSize[0] / 2), SBD: int(targetSize[0] / 2),
 							FWD: int(-targetSize[1] / 2), AFT: int(targetSize[1] / 2),
 							UP: int(targetSize[2] / 2), DOWN: int(-targetSize[2] / 2)}
@@ -67,9 +70,9 @@ class Ship:
 		potentialPositions = set()
 		while (not potentialPositions):
 			minDSquared = None
-			for (doorPos, direction) in self.potentialDoorways:
+			for (doorPos, direction, doorProb) in self.potentialDoorways:
 				# one dimension is fixed based on position and alignment of doorway
-				if (direction in [SBD, PRT]):
+				if (direction in [SBD, PORT]):
 					fixedIdx = 0
 				elif (direction in [FWD, AFT]):
 					fixedIdx = 1
@@ -87,8 +90,8 @@ class Ship:
 					tryPos[variableIdx[i]] = max(min(idealPos, maxPos), minPos)
 				tryPosList = [tryPos]
 				while (tryPosList):
-					tryPos = tryPosList.pop(0)
-					obstruction = self.getObstruction(*(tryPos + roomSize))
+					tryPos = tuple(tryPosList.pop(0))
+					obstruction = self.getObstruction(*(tryPos + tuple(roomSize)))
 					if (obstruction is None):
 						dSquared = distSquared(center, [float(tryPos[i] + roomSize[i]) / 2 for i in xrange(len(tryPos))])
 						potentialPositions.add((tryPos, dSquared))
@@ -98,7 +101,7 @@ class Ship:
 						# obstruction prevents ideal placement, try moving away from center
 						newTryPos = []
 						for i in xrange(len(variableIdx)):
-							p = tryPos[:]
+							p = list(tryPos)
 							if (doorPos[variableIdx[i]] > obstruction[variableIdx[i]]):
 								p[variableIdx[i]] = obstruction[variableIdx[i]] + 1
 							elif (doorPos[variableIdx[i]] < obstruction[variableIdx[i]]):
@@ -113,7 +116,7 @@ class Ship:
 				return random.choice(posChoices)
 #####
 ##
-			#try to find a position where a hall can be made from one of self.potentialDoors
+			#try to find a position where a hall can be made from one of self.potentialDoorways
 			#if potentialPositions: return best
 ##
 #####
@@ -123,7 +126,7 @@ class Ship:
 ##
 #####
 
-	def addWall(pos, material):
+	def addWall(self, pos, material):
 #####
 ##
 		#set material at pos to Materials.strongestMaterial(material, material already at pos)
@@ -141,20 +144,20 @@ class Ship:
 		roomVolume = 0
 		for part in partCounts.keys():
 			for i in xrange(len(roomSize)):
-				if (Parts[part].size[i] > roomSize[i]):
+				if (Parts.parts[self.size][part].size[i] > roomSize[i]):
 					roomSize[i] = Parts[part].size[i]
-			roomVolume += reduce(lambda x, y: x * y, Parts.parts[part].size, 1)
+			roomVolume += reduce(lambda x, y: x * y, Parts.parts[self.size][part].size, 1)
 		freeVolume = roomVolume * freeFactor
 		roomVolume *= max(1 + freeFactor, 1.5)
 		roomSize[2] |= 1 # ensure height is odd so room fits evenly into decks
 		roomArea = float(roomVolume) / roomSize[2]
-		roomSize[1] = max(math.ceil(math.sqrt(roomArea)), roomSize[1])
-		roomSize[0] = max(math.ceil(roomArea / roomSize[1]), roomSize[0])
+		roomSize[1] = max(int(math.ceil(math.sqrt(roomArea))), roomSize[1])
+		roomSize[0] = max(int(math.ceil(roomArea / roomSize[1])), roomSize[0])
 		roomPos = self.getRoomPos(roomSize, isBridge)
 
 		# handle room edges (walls, windows, doorways)
 		windowDirs = set()
-		for direction in [UP, DOWN, SBD, PRT, FWD, AFT]:
+		for direction in [UP, DOWN, SBD, PORT, FWD, AFT]:
 			if (random.random() < Rooms.rooms[room].windows):
 				windowDirs.add(direction)
 		# corner blocks: add window if space is empty; remove if space is full
@@ -171,13 +174,13 @@ class Ship:
 			self.windows.remove(blockPos)
 		self.addWall(blockPos, roomMaterial)
 		blockPos = (roomPos[0] - 1, roomPos[1] - 1, roomPos[2] + roomSize[2])
-		if ((UP in windowDirs) and (PRT in windowDirs) and (FWD in windowDirs) and (self.isFree(*blockPos))):
+		if ((UP in windowDirs) and (PORT in windowDirs) and (FWD in windowDirs) and (self.isFree(*blockPos))):
 			self.windows.add(blockPos)
 		elif (blockPos in self.windows):
 			self.windows.remove(blockPos)
 		self.addWall(blockPos, roomMaterial)
 		blockPos = (roomPos[0] - 1, roomPos[1] + roomSize[1], roomPos[2] + roomSize[2])
-		if ((UP in windowDirs) and (PRT in windowDirs) and (AFT in windowDirs) and (self.isFree(*blockPos))):
+		if ((UP in windowDirs) and (PORT in windowDirs) and (AFT in windowDirs) and (self.isFree(*blockPos))):
 			self.windows.add(blockPos)
 		elif (blockPos in self.windows):
 			self.windows.remove(blockPos)
@@ -195,18 +198,19 @@ class Ship:
 			self.windows.remove(blockPos)
 		self.addWall(blockPos, roomMaterial)
 		blockPos = (roomPos[0] - 1, roomPos[1] - 1, roomPos[2] - 1)
-		if ((DOWN in windowDirs) and (PRT in windowDirs) and (FWD in windowDirs) and (self.isFree(*blockPos))):
+		if ((DOWN in windowDirs) and (PORT in windowDirs) and (FWD in windowDirs) and (self.isFree(*blockPos))):
 			self.windows.add(blockPos)
 		elif (blockPos in self.windows):
 			self.windows.remove(blockPos)
 		self.addWall(blockPos, roomMaterial)
 		blockPos = (roomPos[0] - 1, roomPos[1] + roomSize[1], roomPos[2] - 1)
-		if ((DOWN in windowDirs) and (PRT in windowDirs) and (AFT in windowDirs) and (self.isFree(*blockPos))):
+		if ((DOWN in windowDirs) and (PORT in windowDirs) and (AFT in windowDirs) and (self.isFree(*blockPos))):
 			self.windows.add(blockPos)
 		elif (blockPos in self.windows):
 			self.windows.remove(blockPos)
 		self.addWall(blockPos, roomMaterial)
 		edgeRange = (min(roomPos), max(addList(roomPos, roomSize)) + 1)
+		expandableSides = set([UP, DOWN, SBD, PORT, FWD, AFT])
 		for i in xrange(*edgeRange):
 			# edge blocks: add window if space is empty; remove is space is full
 			if ((i >= roomPos[0]) and (i < roomPos[0] + roomSize[0])):
@@ -242,7 +246,7 @@ class Ship:
 					self.windows.remove(blockPos)
 				self.addWall(blockPos, roomMaterial)
 				blockPos = (roomPos[0] - 1, i, roomPos[2] + roomSize[2])
-				if ((UP in windowDirs) and (PRT in windowDirs) and (self.isFree(*blockPos))):
+				if ((UP in windowDirs) and (PORT in windowDirs) and (self.isFree(*blockPos))):
 					self.windows.add(blockPos)
 				elif (blockPos in self.windows):
 					self.windows.remove(blockPos)
@@ -254,7 +258,7 @@ class Ship:
 					self.windows.remove(blockPos)
 				self.addWall(blockPos, roomMaterial)
 				blockPos = (roomPos[0] - 1, i, roomPos[2] - 1)
-				if ((DOWN in windowDirs) and (PRT in windowDirs) and (self.isFree(*blockPos))):
+				if ((DOWN in windowDirs) and (PORT in windowDirs) and (self.isFree(*blockPos))):
 					self.windows.add(blockPos)
 				elif (blockPos in self.windows):
 					self.windows.remove(blockPos)
@@ -273,13 +277,13 @@ class Ship:
 					self.windows.remove(blockPos)
 				self.addWall(blockPos, roomMaterial)
 				blockPos = (roomPos[0] - 1, roomPos[1] - 1, i)
-				if ((PRT in windowDirs) and (FWD in windowDirs) and (self.isFree(*blockPos))):
+				if ((PORT in windowDirs) and (FWD in windowDirs) and (self.isFree(*blockPos))):
 					self.windows.add(blockPos)
 				elif (blockPos in self.windows):
 					self.windows.remove(blockPos)
 				self.addWall(blockPos, roomMaterial)
 				blockPos = (roomPos[0] - 1, roomPos[1] + roomSize[1], i)
-				if ((PRT in windowDirs) and (AFT in windowDirs) and (self.isFree(*blockPos))):
+				if ((PORT in windowDirs) and (AFT in windowDirs) and (self.isFree(*blockPos))):
 					self.windows.add(blockPos)
 				elif (blockPos in self.windows):
 					self.windows.remove(blockPos)
@@ -294,12 +298,16 @@ class Ship:
 						elif (blockPos in self.windows):
 							self.windows.remove(blockPos)
 						self.addWall(blockPos, roomMaterial)
+						if ((UP in expandableSides) and (self.getObstruction(*addList(blockPos, UP)) is not None)):
+							expandableSides.remove(UP)
 						blockPos = (i, j, roomPos[2] - 1)
 						if ((DOWN in windowDirs) and (self.isFree(*blockPos))):
 							self.windows.add(blockPos)
 						elif (blockPos in self.windows):
 							self.windows.remove(blockPos)
 						self.addWall(blockPos, roomMaterial)
+						if ((DOWN in expandableSides) and (self.getObstruction(*addList(blockPos, DOWN)) is not None)):
+							expandableSides.remove(DOWN)
 					if ((j >= roomPos[2]) and (j < roomPos[2] + roomSize[2])):
 						blockPos = (i, roomPos[1] - 1, j)
 						if ((FWD in windowDirs) and (self.isFree(*blockPos))):
@@ -307,12 +315,16 @@ class Ship:
 						elif (blockPos in self.windows):
 							self.windows.remove(blockPos)
 						self.addWall(blockPos, roomMaterial)
+						if ((FWD in expandableSides) and (self.getObstruction(*addList(blockPos, FWD)) is not None)):
+							expandableSides.remove(FWD)
 						blockPos = (i, roomPos[1] + roomSize[1], j)
 						if ((AFT in windowDirs) and (self.isFree(*blockPos))):
 							self.windows.add(blockPos)
 						elif (blockPos in self.windows):
 							self.windows.remove(blockPos)
 						self.addWall(blockPos, roomMaterial)
+						if ((AFT in expandableSides) and (self.getObstruction(*addList(blockPos, AFT)) is not None)):
+							expandableSides.remove(AFT)
 				if ((i >= roomPos[1]) and (i < roomPos[1] + roomSize[1])):
 					if ((j >= roomPos[2]) and (j < roomPos[2] + roomSize[2])):
 						blockPos = (roomPos[0] - 1, i, j)
@@ -321,73 +333,148 @@ class Ship:
 						elif (blockPos in self.windows):
 							self.windows.remove(blockPos)
 						self.addWall(blockPos, roomMaterial)
+						if ((SBD in expandableSides) and (self.getObstruction(*addList(blockPos, SBD)) is not None)):
+							expandableSides.remove(SBD)
 						blockPos = (roomPos[0] + roomSize[0], i, j)
-						if ((PRT in windowDirs) and (self.isFree(*blockPos))):
+						if ((PORT in windowDirs) and (self.isFree(*blockPos))):
 							self.windows.add(blockPos)
 						elif (blockPos in self.windows):
 							self.windows.remove(blockPos)
 						self.addWall(blockPos, roomMaterial)
+						if ((PORT in expandableSides) and (self.getObstruction(*addList(blockPos, PORT)) is not None)):
+							expandableSides.remove(PORT)
 #####
 ##
 				#if spot is potential door: make note that we'll need access to at least one such spot
-				#if full side is available for expansion: make note of that (and note that we'll need access to at least one point on it)
+		#note that we'll need access to at least one point on each of expandableSides (ideally at least one per deck)
 		#for part in partCounts.keys() sorted largest to smallest:
-		#  #reversed(sorted(partCounts.keys(), key=lambda p: reduce(lambda x, y: x * y, Parts.parts[p].size, 1)))
+		#  #reversed(sorted(partCounts.keys(), key=lambda p: reduce(lambda x, y: x * y, Parts.parts[self.size][p].size, 1)))
 		#  for i in xrange(partCounts[part]):
 		#    pick a location for part
 		#      if nowhere available, pick a random expandable direction and expand (retraverse expanded side as above)
 		#    make sure its access requirements are free and that all access requirements have paths to link up
 		#      when only one path to link up access requirements, set all spaces in path as access requirements
 		#    remove adjacent spaces from self.potentialDoorways (make sure we don't remove last one on a side)
-		#      when potentialdoors for a side reduced to one: add adjacent access space; add doorway to self.doorways
-		#if walls necessary, add remaining walls
-		#set all room spaces in self.occupied
+		#      when potentialdoorways for a side reduced to one: add adjacent access space; add doorway to self.doorways
+		#make sure we've added (doorPos, direction, doorProbability) to self.potentialDoorways
+		doorPos = (roomPos[0] + roomSize[0] / 2, roomPos[1] + roomSize[1] / 2, roomPos[2] + roomSize[2])
+		self.potentialDoorways.add((doorPos, UP, 0))
+		doorPos = (roomPos[0] + roomSize[0] / 2, roomPos[1] + roomSize[1] / 2, roomPos[2] - 1)
+		self.potentialDoorways.add((doorPos, DOWN, 0))
+		doorPos = (roomPos[0] + roomSize[0], roomPos[1] + roomSize[1] / 2, roomPos[2] + roomSize[2] / 2)
+		self.potentialDoorways.add((doorPos, SBD, 0))
+		doorPos = (roomPos[0] - 1, roomPos[1] + roomSize[1] / 2, roomPos[2] + roomSize[2] / 2)
+		self.potentialDoorways.add((doorPos, PORT, 0))
+		doorPos = (roomPos[0] + roomSize[0] / 2, roomPos[1] - 1, roomPos[2] + roomSize[2] / 2)
+		self.potentialDoorways.add((doorPos, FWD, 0))
+		doorPos = (roomPos[0] + roomSize[0] / 2, roomPos[1] + roomSize[1], roomPos[2] + roomSize[2] / 2)
+		self.potentialDoorways.add((doorPos, AFT, 0))
 ##
 #####
+		for x in xrange(roomPos[0] - 1, roomPos[0] + roomSize[0] + 1):
+			if (x not in self.occupied):
+				self.occupied[x] = {}
+			for y in xrange(roomPos[1] - 1, roomPos[1] + roomSize[1] + 1):
+				if (y not in self.occupied[x]):
+					self.occupied[x][y] = set()
+				self.occupied[x][y].update(xrange(roomPos[2] - 1, roomPos[2] + roomSize[2] + 1))
 ##
 #####
 
 
-def layoutShip(material, enclosure, symmetry, rooms, thrusters, gyros, reactors):
+def assignPartsToRooms(rooms, size, partCounts):
+	for part in partCounts.keys():
+		if (partCounts[part] <= 0):
+			continue
+		probSum = 0
+		probDict = {}
+		for (room, prob) in Parts.parts[size][part].rooms.items():
+			if ((prob > 0) and (rooms.has_key(room))):
+				probDict[room] = prob
+				probSum += prob
+		if (probSum > 0):
+			# normalize probabilities
+			for room in probDict.keys():
+				probDict[room] /= probSum
+		while ((probDict) and (partCounts[part] > 0)):
+			room = Util.randomDict(probDict)
+			maxCount = Rooms.rooms[room].parts.get(part, {}).get(PART_MAX)
+			roomList = [r for r in rooms[room] if (maxCount is None) or (r.get(part, 0) < maxCount)]
+			if (not roomList):
+				# remove room from probDict, renormalizing first
+				probSum = 1 - probDict[room]
+				if (probSum <= 0):
+					break
+				for r in probDict.keys():
+					probDict[r] /= probSum
+				del probDict[room]
+				continue
+			roomDict = random.choice(roomList)
+			roomDict[part] = roomDict.get(part, 0) + 1
+			partCounts[part] -= 1
+#####
+##
+	#balance rooms if symmetry requires it
+##
+#####
+	# dump remaining unassigned parts into "Interior" pseudo-room
+	for part in partCounts.keys():
+		if (partCounts[part] > 0):
+			rooms[Rooms.INTERIOR][0][part] = partCounts[part]
+
+def layoutShip(size, material, enclosure, symmetry, rooms, thrusters, gyros, reactors):
+	rooms = copy.deepcopy(rooms)
 	# get non-empty, non-"Exterior" rooms; split into "bridge" (cockpit and possible windows) and non-"bridge" rooms
 	bridgeRooms = []
 	nonBridgeRooms = []
 	partsVol = 0
 	minHeight = 0
+	# add gyros and reactors into rooms
+	gyrosAndReactors = {}
+	for gyro in gyros.keys():
+		gyrosAndReactors[gyro.name] = gyros[gyro]
+	for reactor in reactors.keys():
+		gyrosAndReactors[reactor.name] = reactors[reactor]
+	assignPartsToRooms(rooms, size, gyrosAndReactors)
 #####
 ##
-	#add gyros and reactors into rooms
 #if symmetry enabled, add rooms in (pseudo-)symmetric pairs if possible; track pairs below
 	for room in rooms.keys():
 		if (room == Rooms.EXTERIOR):
 			continue
 		freeRange = (Rooms.rooms[room].free[FREE_MIN], Rooms.rooms[room].free[FREE_MAX])
-		for i in xrange(len(rooms[room])):
+		i = 0
+		for roomDict in rooms[room]:
+			if (not roomDict):
+				continue
 			if (i > 0):
 				roomName = "%s %d" % (room, i)
 			else:
 				roomName = room
+			i += 1
 			freeFactor = random.uniform(*freeRange)
 			if (freeFactor > 1):
 				volFactor = float(freeFactor + 1) / 2
 			else:
 				volFactor = 1
-			if ((Rooms.rooms[room].windows > 0) and (rooms[room][i].get("Cockpit", 0) > 0)):
-				bridgeRooms.append((room, rooms[room][i], freeFactor, roomName))
-			elif (rooms[room][i]):
-				nonBridgeRooms.append((room, rooms[room][i], freeFactor, roomName))
-			for part in rooms[room][i].keys():
-				partsVol += reduce(lambda x, y: x * y, Parts.parts[part].size, volFactor)
-				partMin = min(Parts.parts[part].size)
+			if ((Rooms.rooms[room].windows > 0) and (roomDict.get("Cockpit", 0) > 0)):
+				bridgeRooms.append((room, roomDict, freeFactor, roomName))
+			else:
+				nonBridgeRooms.append((room, roomDict, freeFactor, roomName))
+			for part in roomDict.keys():
+				partsVol += reduce(lambda x, y: x * y, Parts.parts[size][part].size, volFactor)
+				partMin = min(Parts.parts[size][part].size)
 				if (partMin > minHeight):
 					minHeight = partMin
 ##
 #####
+	print "bridge rooms: %s"%bridgeRooms
+	print "non-bridge rooms: %s"%nonBridgeRooms
 	# determine target dimensions
 	targetWidth = (partsVol * TARGET_WIDTH_FACTOR) ** (1.0 / 3)
 	targetHeight = max(targetWidth * TARGET_HEIGHT_FACTOR, minHeight)
 	targetLength = targetWidth * TARGET_LENGTH_FACTOR
-	retval = Ship((targetWidth, targetLength, targetHeight))
+	retval = Ship(size, (targetWidth, targetLength, targetHeight))
 	random.shuffle(bridgeRooms)
 	random.shuffle(nonBridgeRooms)
 	if (bridgeRooms):
@@ -405,8 +492,9 @@ def layoutShip(material, enclosure, symmetry, rooms, thrusters, gyros, reactors)
 #####
 ##
 	#add doorways/doors between rooms
-	#add windows on outside faces
-	#finish off hull (replace outer room walls with hull material if latter is stronger)
+	#for all outer hull blocks:
+	#  if (blockPos in retval.windows): place window
+	#  else: retval.addWall(blockPos, material)
 	#add "Exterior" parts
 ##
 #####

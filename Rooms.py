@@ -116,5 +116,5 @@ def init():
 	for roomName in configDict.keys():
 		if (type(configDict[roomName]) != type({})):
 			continue
-		rooms[roomName] = Room(roomName, configDict)
+		rooms[roomName] = Room(roomName, configDict[roomName])
 	initialized = True
