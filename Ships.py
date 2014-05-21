@@ -24,6 +24,9 @@ def distSquared(p1, p2):
 		retval += (p1[i] - p2[i]) * (p1[i] - p2[i])
 	return retval
 
+def addList(l1, l2):
+	return [l1[i] + l2[i] for i in xrange(min(len(l1), len(l2)))]
+
 class Ship:
 	def __init__(self, targetSize):
 		self.targetEdges = {PORT: int(-targetSize[0] / 2), SBD: int(targetSize[0] / 2),
@@ -33,6 +36,8 @@ class Ship:
 		self.parts = {}
 		self.potentialDoorways = set()
 		self.doorways = set()
+		self.windows = set()
+		self.potentialHull = set()
 
 	def getObstruction(self, x0, y0, z0, w=1, l=1, h=1):
 		for x in xrange(x0, x0 + w):
@@ -89,20 +94,20 @@ class Ship:
 						potentialPositions.add((tryPos, dSquared))
 						if ((minDSquared is None) or (dSquared < minDSquared)):
 							minDSquared = dSquared
-						break
-					# obstruction prevents ideal placement, try moving away from center
-					newTryPos = []
-					for i in xrange(len(variableIdx)):
-						p = tryPos[:]
-						if (doorPos[variableIdx[i]] > obstruction[variableIdx[i]]):
-							p[variableIdx[i]] = obstruction[variableIdx[i]] + 1
-						elif (doorPos[variableIdx[i]] < obstruction[variableIdx[i]]):
-							p[variableIdx[i]] = obstruction[variableIdx[i]] - roomSize[variableIdx[i]]
-						else:
-							continue
-						newTryPos.append(p)
-					newTryPos.sort(key=lambda p: distSquared(p, center))
-					tryPosList += newTryPos
+					else:
+						# obstruction prevents ideal placement, try moving away from center
+						newTryPos = []
+						for i in xrange(len(variableIdx)):
+							p = tryPos[:]
+							if (doorPos[variableIdx[i]] > obstruction[variableIdx[i]]):
+								p[variableIdx[i]] = obstruction[variableIdx[i]] + 1
+							elif (doorPos[variableIdx[i]] < obstruction[variableIdx[i]]):
+								p[variableIdx[i]] = obstruction[variableIdx[i]] - roomSize[variableIdx[i]]
+							else:
+								continue
+							newTryPos.append(p)
+						newTryPos.sort(key=lambda p: distSquared(p, center))
+						tryPosList += newTryPos
 			posChoices = [pos for (pos, dSquared) in potentialPositions if dSquared <= minDSquared]
 			if (posChoices):
 				return random.choice(posChoices)
@@ -118,7 +123,20 @@ class Ship:
 ##
 #####
 
+	def addWall(pos, material):
+#####
+##
+		#set material at pos to Materials.strongestMaterial(material, material already at pos)
+##
+#####
+		self.potentialHull.add(pos)
+
 	def addRoom(self, room, partCounts, freeFactor, roomName, isBridge):
+		roomMaterial = Util.randomDict(Rooms.rooms[room].materials)
+#####
+##
+#handle symmetry and part rotation
+		# determine room size and position
 		roomSize = [1, 1, 1]
 		roomVolume = 0
 		for part in partCounts.keys():
@@ -133,14 +151,199 @@ class Ship:
 		roomSize[1] = max(math.ceil(math.sqrt(roomArea)), roomSize[1])
 		roomSize[0] = max(math.ceil(roomArea / roomSize[1]), roomSize[0])
 		roomPos = self.getRoomPos(roomSize, isBridge)
+
+		# handle room edges (walls, windows, doorways)
+		windowDirs = set()
+		for direction in [UP, DOWN, SBD, PRT, FWD, AFT]:
+			if (random.random() < Rooms.rooms[room].windows):
+				windowDirs.add(direction)
+		# corner blocks: add window if space is empty; remove if space is full
+		blockPos = (roomPos[0] + roomSize[0], roomPos[1] - 1, roomPos[2] + roomSize[2])
+		if ((UP in windowDirs) and (SBD in windowDirs) and (FWD in windowDirs) and (self.isFree(*blockPos))):
+			self.windows.add(blockPos)
+		elif (blockPos in self.windows):
+			self.windows.remove(blockPos)
+		self.addWall(blockPos, roomMaterial)
+		blockPos = (roomPos[0] + roomSize[0], roomPos[1] + roomSize[1], roomPos[2] + roomSize[2])
+		if ((UP in windowDirs) and (SBD in windowDirs) and (AFT in windowDirs) and (self.isFree(*blockPos))):
+			self.windows.add(blockPos)
+		elif (blockPos in self.windows):
+			self.windows.remove(blockPos)
+		self.addWall(blockPos, roomMaterial)
+		blockPos = (roomPos[0] - 1, roomPos[1] - 1, roomPos[2] + roomSize[2])
+		if ((UP in windowDirs) and (PRT in windowDirs) and (FWD in windowDirs) and (self.isFree(*blockPos))):
+			self.windows.add(blockPos)
+		elif (blockPos in self.windows):
+			self.windows.remove(blockPos)
+		self.addWall(blockPos, roomMaterial)
+		blockPos = (roomPos[0] - 1, roomPos[1] + roomSize[1], roomPos[2] + roomSize[2])
+		if ((UP in windowDirs) and (PRT in windowDirs) and (AFT in windowDirs) and (self.isFree(*blockPos))):
+			self.windows.add(blockPos)
+		elif (blockPos in self.windows):
+			self.windows.remove(blockPos)
+		self.addWall(blockPos, roomMaterial)
+		blockPos = (roomPos[0] + roomSize[0], roomPos[1] - 1, roomPos[2] - 1)
+		if ((DOWN in windowDirs) and (SBD in windowDirs) and (FWD in windowDirs) and (self.isFree(*blockPos))):
+			self.windows.add(blockPos)
+		elif (blockPos in self.windows):
+			self.windows.remove(blockPos)
+		self.addWall(blockPos, roomMaterial)
+		blockPos = (roomPos[0] + roomSize[0], roomPos[1] + roomSize[1], roomPos[2] - 1)
+		if ((DOWN in windowDirs) and (SBD in windowDirs) and (AFT in windowDirs) and (self.isFree(*blockPos))):
+			self.windows.add(blockPos)
+		elif (blockPos in self.windows):
+			self.windows.remove(blockPos)
+		self.addWall(blockPos, roomMaterial)
+		blockPos = (roomPos[0] - 1, roomPos[1] - 1, roomPos[2] - 1)
+		if ((DOWN in windowDirs) and (PRT in windowDirs) and (FWD in windowDirs) and (self.isFree(*blockPos))):
+			self.windows.add(blockPos)
+		elif (blockPos in self.windows):
+			self.windows.remove(blockPos)
+		self.addWall(blockPos, roomMaterial)
+		blockPos = (roomPos[0] - 1, roomPos[1] + roomSize[1], roomPos[2] - 1)
+		if ((DOWN in windowDirs) and (PRT in windowDirs) and (AFT in windowDirs) and (self.isFree(*blockPos))):
+			self.windows.add(blockPos)
+		elif (blockPos in self.windows):
+			self.windows.remove(blockPos)
+		self.addWall(blockPos, roomMaterial)
+		edgeRange = (min(roomPos), max(addList(roomPos, roomSize)) + 1)
+		for i in xrange(*edgeRange):
+			# edge blocks: add window if space is empty; remove is space is full
+			if ((i >= roomPos[0]) and (i < roomPos[0] + roomSize[0])):
+				blockPos = (i, roomPos[1] - 1, roomPos[2] + roomSize[2])
+				if ((UP in windowDirs) and (FWD in windowDirs) and (self.isFree(*blockPos))):
+					self.windows.add(blockPos)
+				elif (blockPos in self.windows):
+					self.windows.remove(blockPos)
+				self.addWall(blockPos, roomMaterial)
+				blockPos = (i, roomPos[1] + roomSize[1], roomPos[2] + roomSize[2])
+				if ((UP in windowDirs) and (AFT in windowDirs) and (self.isFree(*blockPos))):
+					self.windows.add(blockPos)
+				elif (blockPos in self.windows):
+					self.windows.remove(blockPos)
+				self.addWall(blockPos, roomMaterial)
+				blockPos = (i, roomPos[1] - 1, roomPos[2] - 1)
+				if ((DOWN in windowDirs) and (FWD in windowDirs) and (self.isFree(*blockPos))):
+					self.windows.add(blockPos)
+				elif (blockPos in self.windows):
+					self.windows.remove(blockPos)
+				self.addWall(blockPos, roomMaterial)
+				blockPos = (i, roomPos[1] + roomSize[1], roomPos[2] - 1)
+				if ((DOWN in windowDirs) and (AFT in windowDirs) and (self.isFree(*blockPos))):
+					self.windows.add(blockPos)
+				elif (blockPos in self.windows):
+					self.windows.remove(blockPos)
+				self.addWall(blockPos, roomMaterial)
+			if ((i >= roomPos[1]) and (i < roomPos[1] + roomSize[1])):
+				blockPos = (roomPos[0] + roomSize[0], i, roomPos[2] + roomSize[2])
+				if ((UP in windowDirs) and (SBD in windowDirs) and (self.isFree(*blockPos))):
+					self.windows.add(blockPos)
+				elif (blockPos in self.windows):
+					self.windows.remove(blockPos)
+				self.addWall(blockPos, roomMaterial)
+				blockPos = (roomPos[0] - 1, i, roomPos[2] + roomSize[2])
+				if ((UP in windowDirs) and (PRT in windowDirs) and (self.isFree(*blockPos))):
+					self.windows.add(blockPos)
+				elif (blockPos in self.windows):
+					self.windows.remove(blockPos)
+				self.addWall(blockPos, roomMaterial)
+				blockPos = (roomPos[0] + roomSize[0], i, roomPos[2] - 1)
+				if ((DOWN in windowDirs) and (SBD in windowDirs) and (self.isFree(*blockPos))):
+					self.windows.add(blockPos)
+				elif (blockPos in self.windows):
+					self.windows.remove(blockPos)
+				self.addWall(blockPos, roomMaterial)
+				blockPos = (roomPos[0] - 1, i, roomPos[2] - 1)
+				if ((DOWN in windowDirs) and (PRT in windowDirs) and (self.isFree(*blockPos))):
+					self.windows.add(blockPos)
+				elif (blockPos in self.windows):
+					self.windows.remove(blockPos)
+				self.addWall(blockPos, roomMaterial)
+			if ((i >= roomPos[2]) and (i < roomPos[2] + roomSize[2])):
+				blockPos = (roomPos[0] + roomSize[0], roomPos[1] - 1, i)
+				if ((SBD in windowDirs) and (FWD in windowDirs) and (self.isFree(*blockPos))):
+					self.windows.add(blockPos)
+				elif (blockPos in self.windows):
+					self.windows.remove(blockPos)
+				self.addWall(blockPos, roomMaterial)
+				blockPos = (roomPos[0] + roomSize[0], roomPos[1] + roomSize[1], i)
+				if ((SBD in windowDirs) and (AFT in windowDirs) and (self.isFree(*blockPos))):
+					self.windows.add(blockPos)
+				elif (blockPos in self.windows):
+					self.windows.remove(blockPos)
+				self.addWall(blockPos, roomMaterial)
+				blockPos = (roomPos[0] - 1, roomPos[1] - 1, i)
+				if ((PRT in windowDirs) and (FWD in windowDirs) and (self.isFree(*blockPos))):
+					self.windows.add(blockPos)
+				elif (blockPos in self.windows):
+					self.windows.remove(blockPos)
+				self.addWall(blockPos, roomMaterial)
+				blockPos = (roomPos[0] - 1, roomPos[1] + roomSize[1], i)
+				if ((PRT in windowDirs) and (AFT in windowDirs) and (self.isFree(*blockPos))):
+					self.windows.add(blockPos)
+				elif (blockPos in self.windows):
+					self.windows.remove(blockPos)
+				self.addWall(blockPos, roomMaterial)
+			for j in xrange(*edgeRange):
+				# face blocks: add window if space is empty; remove if space is full
+				if ((i >= roomPos[0]) and (i < roomPos[0] + roomSize[0])):
+					if ((j >= roomPos[1]) and (j < roomPos[1] + roomSize[1])):
+						blockPos = (i, j, roomPos[2] + roomSize[2])
+						if ((UP in windowDirs) and (self.isFree(*blockPos))):
+							self.windows.add(blockPos)
+						elif (blockPos in self.windows):
+							self.windows.remove(blockPos)
+						self.addWall(blockPos, roomMaterial)
+						blockPos = (i, j, roomPos[2] - 1)
+						if ((DOWN in windowDirs) and (self.isFree(*blockPos))):
+							self.windows.add(blockPos)
+						elif (blockPos in self.windows):
+							self.windows.remove(blockPos)
+						self.addWall(blockPos, roomMaterial)
+					if ((j >= roomPos[2]) and (j < roomPos[2] + roomSize[2])):
+						blockPos = (i, roomPos[1] - 1, j)
+						if ((FWD in windowDirs) and (self.isFree(*blockPos))):
+							self.windows.add(blockPos)
+						elif (blockPos in self.windows):
+							self.windows.remove(blockPos)
+						self.addWall(blockPos, roomMaterial)
+						blockPos = (i, roomPos[1] + roomSize[1], j)
+						if ((AFT in windowDirs) and (self.isFree(*blockPos))):
+							self.windows.add(blockPos)
+						elif (blockPos in self.windows):
+							self.windows.remove(blockPos)
+						self.addWall(blockPos, roomMaterial)
+				if ((i >= roomPos[1]) and (i < roomPos[1] + roomSize[1])):
+					if ((j >= roomPos[2]) and (j < roomPos[2] + roomSize[2])):
+						blockPos = (roomPos[0] - 1, i, j)
+						if ((SBD in windowDirs) and (self.isFree(*blockPos))):
+							self.windows.add(blockPos)
+						elif (blockPos in self.windows):
+							self.windows.remove(blockPos)
+						self.addWall(blockPos, roomMaterial)
+						blockPos = (roomPos[0] + roomSize[0], i, j)
+						if ((PRT in windowDirs) and (self.isFree(*blockPos))):
+							self.windows.add(blockPos)
+						elif (blockPos in self.windows):
+							self.windows.remove(blockPos)
+						self.addWall(blockPos, roomMaterial)
 #####
 ##
-		#generate room layout, handling (pseudo-)symmetric pairs appropriately
-		#  traverse reversed(sorted(partCounts.keys(), key=lambda p: tuple(reversed(Parts.parts[p].size)))) #g->l, h->l->w
-		#  use roomSize to guide general layout
-		#  make sure to leave freeVolume free space
-		#  leave room to connect to existing rooms and to attachable sides as appropriate
-		#update self.potentialDoorways and self.doorways so that only one doorway between rooms
+				#if spot is potential door: make note that we'll need access to at least one such spot
+				#if full side is available for expansion: make note of that (and note that we'll need access to at least one point on it)
+		#for part in partCounts.keys() sorted largest to smallest:
+		#  #reversed(sorted(partCounts.keys(), key=lambda p: reduce(lambda x, y: x * y, Parts.parts[p].size, 1)))
+		#  for i in xrange(partCounts[part]):
+		#    pick a location for part
+		#      if nowhere available, pick a random expandable direction and expand (retraverse expanded side as above)
+		#    make sure its access requirements are free and that all access requirements have paths to link up
+		#      when only one path to link up access requirements, set all spaces in path as access requirements
+		#    remove adjacent spaces from self.potentialDoorways (make sure we don't remove last one on a side)
+		#      when potentialdoors for a side reduced to one: add adjacent access space; add doorway to self.doorways
+		#if walls necessary, add remaining walls
+		#set all room spaces in self.occupied
+##
+#####
 ##
 #####
 
