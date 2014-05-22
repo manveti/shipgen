@@ -485,7 +485,8 @@ class ShipClass:
 				for y in xrange(minCoords[1],maxCoords[1]+1):
 					line = ""
 					for x in xrange(minCoords[0],maxCoords[0]+1):
-						line += ship.structure.get((x,y,z), " ")[0]
+						if ((x,y,z) in ship.windows): line+="W"
+						else: line += ship.structure.get((x,y,z), " ")[0]
 					print line
 		else:
 			print "no ship structure"
