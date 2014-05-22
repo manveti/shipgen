@@ -241,7 +241,9 @@ class ShipClass:
 				partCounts[part] = min(roomCounts[room] * partDict[PART_MIN], self.parts[part][PART_MAX])
 			if (partMins[part] > partCounts.get(part, 0)):
 				# insufficient parts to meet room requirements; remove highest-count room until requirements met
-				affectedRooms = [(room, roomCounts[room] * Rooms.rooms[room].parts.get(part, 0)) for room in roomCounts.keys()]
+				affectedRooms = []
+				for room in roomCounts.keys():
+					affectedRooms.append((room, Rooms.rooms[room].parts.get(part, {}).get(PART_MIN, 0)))
 				affectedRooms.sort(key=lambda t: t[1])
 				while (partMins[part] > partCounts.get(part, 0)):
 					(room, partCount) = affectedRooms.pop(0)
@@ -342,12 +344,7 @@ class ShipClass:
 			needsWork = False
 			# generate layout
 			structureMass = 0
-#####
-##
-			#generate layout (self.size, material, enclosure, symmetry, rooms, thrusters, gyros, reactors)
-			Ships.layoutShip(self.size, material, enclosure, symmetry, rooms, thrusters, gyros, reactors)
-##
-#####
+			ship = Ships.layoutShip(self.size, material, enclosure, symmetry, rooms, thrusters, gyros, reactors)
 			# after a few tries, accept that the peformance we want may not be possible with the parts we have
 			if (iterations > COMPROMISE_THRESHOLD):
 				if ((accel > self.accel[ACCEL_MIN]) or (turn > self.turn[TURN_MIN])):
@@ -473,6 +470,25 @@ class ShipClass:
 		print "gyros: %s (turn: %s)"%(gyros,gyrosTurn/mass)
 		print "reactors: %s (power: %s)"%(reactors,reactorsPower)
 		print "mass: %s"%mass
+		if (ship.structure):
+			minCoords = [None,None,None]
+			maxCoords = [None,None,None]
+			for pos in ship.structure.keys():
+				for i in xrange(len(pos)):
+					if ((minCoords[i] is None) or (pos[i]<minCoords[i])):
+						minCoords[i]=pos[i]
+					if ((maxCoords[i] is None) or (pos[i]>maxCoords[i])):
+						maxCoords[i]=pos[i]
+			print "ship structure slices:"
+			for z in xrange(minCoords[2],maxCoords[2]+1):
+				print "z=%s"%z
+				for y in xrange(minCoords[1],maxCoords[1]+1):
+					line = ""
+					for x in xrange(minCoords[0],maxCoords[0]+1):
+						line += ship.structure.get((x,y,z), " ")[0]
+					print line
+		else:
+			print "no ship structure"
 ##
 #####
 

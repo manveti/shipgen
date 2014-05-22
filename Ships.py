@@ -447,9 +447,8 @@ class Ship:
 		#    when key of incomingDoorways filled: del self.potentialDoorways[incomingDoorways[key]]; del incomingDoorways[key]
 		#    make sure its access requirements are free and that all access requirements have paths to link up
 		#      when only one path to link up access requirements, set all spaces in path as access requirements
-		#    remove adjacent spaces from self.potentialDoorways (make sure we don't remove last one on a side)
-		#      when potentialdoorways for a side reduced to one: add adjacent access space; add doorway to self.doorways
-		#if any side still has more than one potential incoming doorway: select one; add doorway to self.doorways
+		#    remove affected spaces from accessRequirements (making sure we have at least accessRequirements[key][0] left)
+		#      if affected space in incomingDoorways: del self.potentialDoorways[incomingDoorways[blockPos]]
 ##
 #####
 
