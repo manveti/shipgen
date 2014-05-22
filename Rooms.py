@@ -1,6 +1,7 @@
 import os.path
 
 import ConfigFile
+import Materials
 import Parts
 
 from Constants import *
@@ -13,7 +14,7 @@ FREE = 'free'
 PARTS = 'parts'
 
 DEFAULTS = {
-	MATERIALS:	"Interior Wall",
+	MATERIALS:	Materials.INTERIOR_DEFAULT,
 	ENCLOSURE:	ENCLOSURE_FULL,
 	DOORS:		.5,
 	WINDOWS:	0,
@@ -21,14 +22,14 @@ DEFAULTS = {
 
 EXTERIOR = "Exterior"
 EXTERIOR_CONFIG = {
-	MATERIALS:	{"Light Armor": 1},
+	MATERIALS:	{Materials.EXTERIOR_DEFAULT: 1},
 	ENCLOSURE:	{ENCLOSURE_NONE: 1},
 	DOORS:		0,
 	WINDOWS:	0,
 }
 INTERIOR = "Interior"
 INTERIOR_CONFIG = {
-	MATERIALS:	{"Interior Wall": 1},
+	MATERIALS:	{Materials.INTERIOR_DEFAULT: 1},
 	ENCLOSURE:	{ENCLOSURE_NONE: 1},
 	DOORS:		0,
 	WINDOWS:	0,
@@ -49,6 +50,20 @@ class Room:
 		materialSum = 0
 		self.materials = {}
 		for material in configDict.get(MATERIALS, {}).keys():
+			if (material not in Materials.materials):
+#####
+##
+				#warn about unrecognized material
+##
+#####
+				continue
+			if (TYPE_LG not in Materials.materials[material].mass):
+#####
+##
+				#warn about material with no large blocks
+##
+#####
+				continue
 			self.materials[material] = float(configDict[MATERIALS][material])
 			materialSum += self.materials[material]
 		if (materialSum > 0):
@@ -108,6 +123,7 @@ def init():
 	global initialized
 	if (initialized):
 		return
+	Materials.init()
 	Parts.init()
 	configPath = os.path.join(os.path.dirname(__file__), "data", "rooms.cfg")
 	configDict = ConfigFile.readFile(configPath)

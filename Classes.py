@@ -4,6 +4,7 @@ import random
 
 import ConfigFile
 import Dists
+import Materials
 import Parts
 import Rooms
 import Ships
@@ -29,7 +30,7 @@ ROOMS = 'rooms'
 ROOM_DISTRIBUTION = 'dist'
 
 DEFAULTS = {
-	MATERIALS:	"Light Armor",
+	MATERIALS:	Materials.EXTERIOR_DEFAULT,
 	ENCLOSURE:	ENCLOSURE_FULL,
 	SYMMETRY:	SYMMETRY_NONE,
 	ACCEL:		{ACCEL_MIN: 1, ACCEL_MAX: 5, ACCEL_FWD: .5, ACCEL_LAT: .5},
@@ -500,6 +501,7 @@ def init():
 	if (initialized):
 		return
 	Dists.init()
+	Materials.init()
 	Parts.init()
 	Rooms.init()
 	for (shipType, typeAbbr) in TYPE_ABBRS.items():

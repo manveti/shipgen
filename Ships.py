@@ -2,6 +2,7 @@ import copy
 import math
 import random
 
+import Materials
 import Parts
 import Rooms
 import Util
@@ -135,11 +136,7 @@ class Ship:
 #####
 
 	def addStructure(self, pos, material):
-#####
-##
-		self.structure[pos] = material #Materials.strongestMaterial(material, material already at pos)
-##
-#####
+		self.structure[pos] = Materials.toughestMaterial(material, self.structure.get(pos), self.size)
 
 	def addRoom(self, room, partCounts, freeFactor, roomName, isBridge):
 		roomMaterial = Util.randomDict(Rooms.rooms[room].materials)
