@@ -153,7 +153,7 @@ class Ship:
 		for part in partCounts.keys():
 			for i in xrange(len(roomSize)):
 				if (Parts.parts[self.size][part].size[i] > roomSize[i]):
-					roomSize[i] = Parts[part].size[i]
+					roomSize[i] = Parts.parts[self.size][part].size[i]
 			roomVolume += reduce(lambda x, y: x * y, Parts.parts[self.size][part].size, 1)
 		freeVolume = roomVolume * freeFactor
 		roomVolume *= max(1 + freeFactor, 1.5)
@@ -390,7 +390,7 @@ class Ship:
 				if ((i >= roomPos[1]) and (i < roomPos[1] + roomSize[1])):
 					if ((j >= roomPos[2]) and (j < roomPos[2] + roomSize[2])):
 						if (roomEnclosure in [ENCLOSURE_FULL, ENCLOSURE_SEALED]):
-							blockPos = (roomPos[0] - 1, i, j)
+							blockPos = (roomPos[0] + roomSize[0], i, j)
 							if ((SBD in windowDirs) and (self.isFree(*blockPos))):
 								self.windows.add(blockPos)
 							elif (blockPos in self.windows):
@@ -408,7 +408,7 @@ class Ship:
 								accessBlock = tuple(addList(blockPos, PORT))
 								incomingAccess[SBD].add(accessBlock)
 								incomingDoorways[accessBlock] = blockPos
-							blockPos = (roomPos[0] + roomSize[0], i, j)
+							blockPos = (roomPos[0] - 1, i, j)
 							if ((PORT in windowDirs) and (self.isFree(*blockPos))):
 								self.windows.add(blockPos)
 							elif (blockPos in self.windows):
@@ -524,9 +524,35 @@ class Ship:
 		#  (direction, doorProb) = self.doorways[doorPos]
 		#  if (random.random() < doorProb):
 		#    add a door facing in specified direction
-		#for all outer hull blocks:
-		#  if (blockPos in retval.windows): place window
-		#  elif (blockPos not in self.doorways): retval.addStructure(blockPos, material)
+##
+#####
+
+		# generate hull
+		if (enclosure == ENCLOSURE_NONE):
+			return
+		for blockPos in self.structure.keys():
+			if (blockPos in self.windows):
+#####
+##
+				#place window
+				pass
+##
+#####
+			elif (blockPos not in self.doorways):
+				freeSides = set()
+				for direction in ALL_DIRECTIONS:
+					if (self.isFree(*addList(blockPos, direction))):
+						freeSides.add(direction)
+				if (not freeSides):
+					# internal structure
+					continue
+				if ((enclosure == ENCLOSURE_PLATFORM) and (DOWN not in freeSides)):
+					# wall or roof; not part of platform
+					continue
+#####
+##
+				#use freeSides to determine if a sloped block applies
+				self.addStructure(blockPos, material)
 ##
 #####
 
