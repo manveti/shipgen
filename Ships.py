@@ -303,7 +303,7 @@ class Ship:
 						elif (blockPos in self.windows):
 							self.windows.remove(blockPos)
 						self.addStructure(blockPos, roomMaterial)
-						if (self.getObstruction(*addList(blockPos, UP)) is None):
+						if (self.isFree(*addList(blockPos, UP))):
 							if (UP not in outgoingAccess):
 								outgoingAccess[UP] = set()
 							outgoingAccess[UP].add(tuple(addList(blockPos, DOWN)))
@@ -321,7 +321,7 @@ class Ship:
 						elif (blockPos in self.windows):
 							self.windows.remove(blockPos)
 						self.addStructure(blockPos, roomMaterial)
-						if (self.getObstruction(*addList(blockPos, DOWN)) is None):
+						if (self.isFree(*addList(blockPos, DOWN))):
 							if (DOWN not in outgoingAccess):
 								outgoingAccess[DOWN] = set()
 							outgoingAccess[DOWN].add(tuple(addList(blockPos, UP)))
@@ -340,7 +340,7 @@ class Ship:
 						elif (blockPos in self.windows):
 							self.windows.remove(blockPos)
 						self.addStructure(blockPos, roomMaterial)
-						if (self.getObstruction(*addList(blockPos, FWD)) is None):
+						if (self.isFree(*addList(blockPos, FWD))):
 							if (FWD not in outgoingAccess):
 								outgoingAccess[FWD] = set()
 							outgoingAccess[FWD].add(tuple(addList(blockPos, AFT)))
@@ -358,7 +358,7 @@ class Ship:
 						elif (blockPos in self.windows):
 							self.windows.remove(blockPos)
 						self.addStructure(blockPos, roomMaterial)
-						if (self.getObstruction(*addList(blockPos, AFT)) is None):
+						if (self.isFree(*addList(blockPos, AFT))):
 							if (AFT not in outgoingAccess):
 								outgoingAccess[AFT] = set()
 							outgoingAccess[AFT].add(tuple(addList(blockPos, FWD)))
@@ -378,7 +378,7 @@ class Ship:
 						elif (blockPos in self.windows):
 							self.windows.remove(blockPos)
 						self.addStructure(blockPos, roomMaterial)
-						if (self.getObstruction(*addList(blockPos, SBD)) is None):
+						if (self.isFree(*addList(blockPos, SBD))):
 							if (SBD not in outgoingAccess):
 								outgoingAccess[SBD] = set()
 							outgoingAccess[SBD].add(tuple(addList(blockPos, PORT)))
@@ -396,7 +396,7 @@ class Ship:
 						elif (blockPos in self.windows):
 							self.windows.remove(blockPos)
 						self.addStructure(blockPos, roomMaterial)
-						if (self.getObstruction(*addList(blockPos, PORT)) is None):
+						if (self.isFree(*addList(blockPos, PORT))):
 							if (PORT not in outgoingAccess):
 								outgoingAccess[PORT] = set()
 							outgoingAccess[PORT].add(tuple(addList(blockPos, SBD)))
@@ -430,21 +430,44 @@ class Ship:
 		#      when only one path to link up access requirements, set all spaces in path as access requirements
 		#    remove adjacent spaces from self.potentialDoorways (make sure we don't remove last one on a side)
 		#      when potentialdoorways for a side reduced to one: add adjacent access space; add doorway to self.doorways
-		#make sure we've added {doorPos: (direction, doorProbability)} to self.potentialDoorways
-		doorPos = (roomPos[0] + roomSize[0] / 2, roomPos[1] + roomSize[1] / 2, roomPos[2] + roomSize[2])
-		self.potentialDoorways[doorPos] = (UP, 0)
-		doorPos = (roomPos[0] + roomSize[0] / 2, roomPos[1] + roomSize[1] / 2, roomPos[2] - 1)
-		self.potentialDoorways[doorPos] = (DOWN, 0)
-		doorPos = (roomPos[0] + roomSize[0], roomPos[1] + roomSize[1] / 2, roomPos[2] + roomSize[2] / 2)
-		self.potentialDoorways[doorPos] = (SBD, 0)
-		doorPos = (roomPos[0] - 1, roomPos[1] + roomSize[1] / 2, roomPos[2] + roomSize[2] / 2)
-		self.potentialDoorways[doorPos] = (PORT, 0)
-		doorPos = (roomPos[0] + roomSize[0] / 2, roomPos[1] - 1, roomPos[2] + roomSize[2] / 2)
-		self.potentialDoorways[doorPos] = (FWD, 0)
-		doorPos = (roomPos[0] + roomSize[0] / 2, roomPos[1] + roomSize[1], roomPos[2] + roomSize[2] / 2)
-		self.potentialDoorways[doorPos] = (AFT, 0)
 ##
 #####
+
+		# determine potential outgoing doorways
+		roomDoorProb = Rooms.rooms[room].doors
+		for i in xrange(*edgeRange):
+			for j in xrange(*edgeRange):
+				if ((i >= roomPos[0]) and (i < roomPos[0] + roomSize[0])):
+					if ((j >= roomPos[1]) and (j < roomPos[1] + roomSize[1])):
+						doorPos = (i, j, roomPos[2] + roomSize[2])
+						if ((self.isFree(*addList(doorPos, UP))) and (self.isFree(*addList(doorPos, DOWN)))):
+							doorProb = max(roomDoorProb, self.potentialDoorways.get(doorPos, (0, 0))[1])
+							self.potentialDoorways[doorPos] = (UP, doorProb)
+						doorPos = (i, j, roomPos[2] - 1)
+						if ((self.isFree(*addList(doorPos, DOWN))) and (self.isFree(*addList(doorPos, UP)))):
+							doorProb = max(roomDoorProb, self.potentialDoorways.get(doorPos, (0, 0))[1])
+							self.potentialDoorways[doorPos] = (DOWN, doorProb)
+					if ((j >= roomPos[2]) and (j < roomPos[2] + roomSize[2]) and ((j & 1) == 0)):
+						doorPos = (i, roomPos[1] - 1, j)
+						if ((self.isFree(*addList(doorPos, FWD))) and (self.isFree(*addList(doorPos, AFT)))):
+							doorProb = max(roomDoorProb, self.potentialDoorways.get(doorPos, (0, 0))[1])
+							self.potentialDoorways[doorPos] = (FWD, doorProb)
+						doorPos = (i, roomPos[1] + roomSize[1], j)
+						if ((self.isFree(*addList(doorPos, AFT))) and (self.isFree(*addList(doorPos, FWD)))):
+							doorProb = max(roomDoorProb, self.potentialDoorways.get(doorPos, (0, 0))[1])
+							self.potentialDoorways[doorPos] = (AFT, doorProb)
+				if ((i >= roomPos[1]) and (i < roomPos[1] + roomSize[1])):
+					if ((j >= roomPos[2]) and (j < roomPos[2] + roomSize[2]) and ((j & 1) == 0)):
+						doorPos = (roomPos[0] + roomSize[0], i, j)
+						if ((self.isFree(*addList(doorPos, SBD))) and (self.isFree(*addList(doorPos, PORT)))):
+							doorProb = max(roomDoorProb, self.potentialDoorways.get(doorPos, (0, 0))[1])
+							self.potentialDoorways[doorPos] = (SBD, doorProb)
+						doorPos = (roomPos[0] - 1, i, j)
+						if ((self.isFree(*addList(doorPos, PORT))) and (self.isFree(*addList(doorPos, SBD)))):
+							doorProb = max(roomDoorProb, self.potentialDoorways.get(doorPos, (0, 0))[1])
+							self.potentialDoorways[doorPos] = (PORT, doorProb)
+
+		# mark room spaces as occupied
 		for x in xrange(roomPos[0] - 1, roomPos[0] + roomSize[0] + 1):
 			if (x not in self.occupied):
 				self.occupied[x] = {}
