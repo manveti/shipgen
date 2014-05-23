@@ -1,4 +1,4 @@
-def readItem(f):
+def readItem(f, inList=False):
 	while (True):
 		line = f.readline()
 		if (not line):
@@ -6,8 +6,10 @@ def readItem(f):
 		line = line.strip()
 		if ((not line) or (line[0] == "#")):
 			continue
-		if (line == "}"):
+		if (line in ["}", "]"]):
 			return None
+		if (inList):
+			return line.strip()
 		splits = line.rsplit(":", 1)
 		if (len(splits) < 2):
 			raise Exception("Illegal config file line: %s" % line)
@@ -20,6 +22,13 @@ def readItem(f):
 				if (not item):
 					break
 				value[item[0]] = item[1]
+		elif (value == "["):
+			value = []
+			while (True):
+				item = readItem(f, True)
+				if (not item):
+					break
+				value.append(item)
 		return (key, value)
 
 def readFile(fname):
