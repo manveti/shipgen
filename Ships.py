@@ -156,7 +156,7 @@ class Ship:
 			for i in xrange(len(roomSize)):
 				if (Parts.parts[self.size][part].size[i] > roomSize[i]):
 					roomSize[i] = Parts.parts[self.size][part].size[i]
-			roomVolume += reduce(lambda x, y: x * y, Parts.parts[self.size][part].size, 1)
+			roomVolume += reduce(lambda x, y: x * y, Parts.parts[self.size][part].size, 1) * partCounts[part]
 		freeVolume = roomVolume * freeFactor
 		roomVolume *= max(1 + freeFactor, 1.5)
 		roomSize[2] |= 1 # ensure height is odd so room fits evenly into decks
@@ -758,7 +758,7 @@ def layoutShip(size, material, enclosure, symmetry, rooms, thrusters, gyros, rea
 			else:
 				nonBridgeRooms.append((room, roomDict, freeFactor, roomMaterial, roomEnclosure, roomName))
 			for part in roomDict.keys():
-				partsVol += reduce(lambda x, y: x * y, Parts.parts[size][part].size, volFactor)
+				partsVol += reduce(lambda x, y: x * y, Parts.parts[size][part].size, volFactor) * roomDict[part]
 				partMin = min(Parts.parts[size][part].size)
 				if (partMin > minHeight):
 					minHeight = partMin
