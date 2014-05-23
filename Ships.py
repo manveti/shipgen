@@ -49,6 +49,8 @@ class Ship:
 		self.doorways = {}
 		self.windows = set()
 		self.structure = {}
+		self.edges = set()
+		self.structureMass = 0
 
 	def getObstruction(self, x0, y0, z0, w=1, l=1, h=1):
 		for x in xrange(x0, x0 + w):
@@ -135,8 +137,13 @@ class Ship:
 ##
 #####
 
-	def addStructure(self, pos, material):
-		self.structure[pos] = Materials.toughestMaterial(material, self.structure.get(pos), self.size)
+	def addStructure(self, pos, material, block=Materials.BLOCK, alignment=None):
+		(existingMaterial, existingBlock, existingAlignment) = self.structure.get(pos, (None, None, None))
+		material = Materials.toughestMaterial(material, existingMaterial, self.size, block)
+		if (block not in Materials.materials[material].toughness[self.size]):
+			block = Materials.BLOCK
+		self.structure[pos] = (material, block, alignment)
+		self.edges.add(pos)
 
 	def addRoom(self, room, partCounts, freeFactor, roomName, isBridge):
 		roomMaterial = Util.randomDict(Rooms.rooms[room].materials)
@@ -191,6 +198,11 @@ class Ship:
 			elif (blockPos in self.windows):
 				self.windows.remove(blockPos)
 			self.addStructure(blockPos, roomMaterial)
+		else:
+			self.edges.add((roomPos[0] + roomSize[0], roomPos[1] - 1, roomPos[2] + roomSize[2]))
+			self.edges.add((roomPos[0] + roomSize[0], roomPos[1] + roomSize[1], roomPos[2] + roomSize[2]))
+			self.edges.add((roomPos[0] - 1, roomPos[1] - 1, roomPos[2] + roomSize[2]))
+			self.edges.add((roomPos[0] - 1, roomPos[1] + roomSize[1], roomPos[2] + roomSize[2]))
 		if (roomEnclosure != ENCLOSURE_NONE):
 			blockPos = (roomPos[0] + roomSize[0], roomPos[1] - 1, roomPos[2] - 1)
 			if ((DOWN in windowDirs) and (SBD in windowDirs) and (FWD in windowDirs) and (self.isFree(*blockPos))):
@@ -216,6 +228,11 @@ class Ship:
 			elif (blockPos in self.windows):
 				self.windows.remove(blockPos)
 			self.addStructure(blockPos, roomMaterial)
+		else:
+			self.edges.add((roomPos[0] + roomSize[0], roomPos[1] - 1, roomPos[2] - 1))
+			self.edges.add((roomPos[0] + roomSize[0], roomPos[1] + roomSize[1], roomPos[2] - 1))
+			self.edges.add((roomPos[0] - 1, roomPos[1] - 1, roomPos[2] - 1))
+			self.edges.add((roomPos[0] - 1, roomPos[1] + roomSize[1], roomPos[2] - 1))
 		edgeRange = (min(roomPos), max(addList(roomPos, roomSize)) + 1)
 		expandableSides = set(ALL_DIRECTIONS)
 		incomingDoorways = {}
@@ -237,6 +254,9 @@ class Ship:
 					elif (blockPos in self.windows):
 						self.windows.remove(blockPos)
 					self.addStructure(blockPos, roomMaterial)
+				else:
+					self.edges.add((i, roomPos[1] - 1, roomPos[2] + roomSize[2]))
+					self.edges.add((i, roomPos[1] + roomSize[1], roomPos[2] + roomSize[2]))
 				if (roomEnclosure != ENCLOSURE_NONE):
 					blockPos = (i, roomPos[1] - 1, roomPos[2] - 1)
 					if ((DOWN in windowDirs) and (FWD in windowDirs) and (self.isFree(*blockPos))):
@@ -250,6 +270,9 @@ class Ship:
 					elif (blockPos in self.windows):
 						self.windows.remove(blockPos)
 					self.addStructure(blockPos, roomMaterial)
+				else:
+					self.edges.add((i, roomPos[1] - 1, roomPos[2] - 1))
+					self.edges.add((i, roomPos[1] + roomSize[1], roomPos[2] - 1))
 			if ((i >= roomPos[1]) and (i < roomPos[1] + roomSize[1])):
 				if (roomEnclosure in [ENCLOSURE_FULL, ENCLOSURE_SEALED]):
 					blockPos = (roomPos[0] + roomSize[0], i, roomPos[2] + roomSize[2])
@@ -264,6 +287,9 @@ class Ship:
 					elif (blockPos in self.windows):
 						self.windows.remove(blockPos)
 					self.addStructure(blockPos, roomMaterial)
+				else:
+					self.edges.add((roomPos[0] + roomSize[0], i, roomPos[2] + roomSize[2]))
+					self.edges.add((roomPos[0] - 1, i, roomPos[2] + roomSize[2]))
 				if (roomEnclosure != ENCLOSURE_NONE):
 					blockPos = (roomPos[0] + roomSize[0], i, roomPos[2] - 1)
 					if ((DOWN in windowDirs) and (SBD in windowDirs) and (self.isFree(*blockPos))):
@@ -277,6 +303,9 @@ class Ship:
 					elif (blockPos in self.windows):
 						self.windows.remove(blockPos)
 					self.addStructure(blockPos, roomMaterial)
+				else:
+					self.edges.add((roomPos[0] + roomSize[0], i, roomPos[2] - 1))
+					self.edges.add((roomPos[0] - 1, i, roomPos[2] - 1))
 			if ((i >= roomPos[2]) and (i < roomPos[2] + roomSize[2])):
 				if (roomEnclosure in [ENCLOSURE_FULL, ENCLOSURE_SEALED]):
 					blockPos = (roomPos[0] + roomSize[0], roomPos[1] + roomSize[1], i)
@@ -291,6 +320,9 @@ class Ship:
 					elif (blockPos in self.windows):
 						self.windows.remove(blockPos)
 					self.addStructure(blockPos, roomMaterial)
+				else:
+					self.edges.add((roomPos[0] + roomSize[0], roomPos[1] + roomSize[1], i))
+					self.edges.add((roomPos[0] - 1, roomPos[1] + roomSize[1], i))
 				if (roomEnclosure != ENCLOSURE_NONE):
 					blockPos = (roomPos[0] + roomSize[0], roomPos[1] - 1, i)
 					if ((SBD in windowDirs) and (FWD in windowDirs) and (self.isFree(*blockPos))):
@@ -304,6 +336,9 @@ class Ship:
 					elif (blockPos in self.windows):
 						self.windows.remove(blockPos)
 					self.addStructure(blockPos, roomMaterial)
+				else:
+					self.edges.add((roomPos[0] + roomSize[0], roomPos[1] - 1, i))
+					self.edges.add((roomPos[0] - 1, roomPos[1] - 1, i))
 			for j in xrange(*edgeRange):
 				# face blocks: add window if space is empty; remove if space is full
 				if ((i >= roomPos[0]) and (i < roomPos[0] + roomSize[0])):
@@ -327,6 +362,8 @@ class Ship:
 								accessBlock = tuple(addList(blockPos, DOWN))
 								incomingAccess[UP].add(accessBlock)
 								incomingDoorways[accessBlock] = blockPos
+						else:
+							self.edges.add((i, j, roomPos[2] + roomSize[2]))
 						if (roomEnclosure != ENCLOSURE_NONE):
 							blockPos = (i, j, roomPos[2] - 1)
 							if ((DOWN in windowDirs) and (self.isFree(*blockPos))):
@@ -346,6 +383,8 @@ class Ship:
 								accessBlock = tuple(addList(blockPos, UP))
 								incomingAccess[DOWN].add(accessBlock)
 								incomingDoorways[accessBlock] = blockPos
+						else:
+							self.edges.add((i, j, roomPos[2] - 1))
 					if ((j >= roomPos[2]) and (j < roomPos[2] + roomSize[2])):
 						if (roomEnclosure in [ENCLOSURE_FULL, ENCLOSURE_SEALED]):
 							blockPos = (i, roomPos[1] - 1, j)
@@ -384,6 +423,9 @@ class Ship:
 								accessBlock = tuple(addList(blockPos, FWD))
 								incomingAccess[AFT].add(accessBlock)
 								incomingDoorways[accessBlock] = blockPos
+						else:
+							self.edges.add((i, roomPos[1] - 1, j))
+							self.edges.add((i, roomPos[1] + roomSize[1], j))
 				if ((i >= roomPos[1]) and (i < roomPos[1] + roomSize[1])):
 					if ((j >= roomPos[2]) and (j < roomPos[2] + roomSize[2])):
 						if (roomEnclosure in [ENCLOSURE_FULL, ENCLOSURE_SEALED]):
@@ -423,6 +465,9 @@ class Ship:
 								accessBlock = tuple(addList(blockPos, SBD))
 								incomingAccess[PORT].add(accessBlock)
 								incomingDoorways[accessBlock] = blockPos
+						else:
+							self.edges.add((roomPos[0] + roomSize[0], i, j))
+							self.edges.add((roomPos[0] - 1, i, j))
 
 		# require access to doors
 		accessRequirements = {}
@@ -515,43 +560,126 @@ class Ship:
 	def finalizeInterior(self, material, enclosure):
 #####
 ##
-		pass
 		#for doorPos in self.doorways.keys():
 		#  if doorPos in self.structure: del self.structure[doorPos]
+		#  if doorPos in self.edges: self.edges.remove(doorPos)
 		#  (direction, doorProb) = self.doorways[doorPos]
 		#  if (random.random() < doorProb):
-		#    add a door facing in specified direction
+		#    add a door facing in specified direction (add door mass to self.structureMass)
 ##
 #####
 
 		# generate hull
 		if (enclosure == ENCLOSURE_NONE):
 			return
-		for blockPos in self.structure.keys():
+		for blockPos in self.edges:
+			freeSides = set()
+			for direction in ALL_DIRECTIONS:
+				if (self.isFree(*addList(blockPos, direction))):
+					freeSides.add(direction)
+			if (not freeSides):
+				# internal structure
+				if (blockPos in self.structure):
+					(blockMaterial, blockType, blockAlignment) = self.structure[blockPos]
+					self.structureMass += Materials.materials[blockMaterial].mass[self.size][blockType]
+				continue
+			if ((enclosure == ENCLOSURE_PLATFORM) and (DOWN not in freeSides)):
+				# wall or roof; not part of platform
+				continue
+			# determine if we can use a sloped block
+			blockType = Materials.BLOCK
+			blockAlignment = None
+			if (UP in freeSides):
+				if (SBD in freeSides):
+					if (FWD in freeSides):
+						blockType = Materials.CORNER
+						blockAlignment = set([UP, SBD, FWD])
+					elif (AFT in freeSides):
+						blockType = Materials.CORNER
+						blockAlignment = set([UP, SBD, AFT])
+					else:
+						blockType = Materials.SLOPE
+						blockAlignment = set([UP, SBD])
+				elif (PORT in freeSides):
+					if (FWD in freeSides):
+						blockType = Materials.CORNER
+						blockAlignment = set([UP, PORT, FWD])
+					elif (AFT in freeSides):
+						blockType = Materials.CORNER
+						blockAlignment = set([UP, PORT, AFT])
+					else:
+						blockType = Materials.SLOPE
+						blockAlignment = set([UP, PORT])
+				elif (FWD in freeSides):
+					blockType = Materials.SLOPE
+					blockAlignment = set([UP, FWD])
+				elif (AFT in freeSides):
+					blockType = Materials.SLOPE
+					blockAlignment = set([UP, AFT])
+				else:
+					blockAlignment = set([UP])
+			elif (DOWN in freeSides):
+				if (SBD in freeSides):
+					if (FWD in freeSides):
+						blockType = Materials.CORNER
+						blockAlignment = set([DOWN, SBD, FWD])
+					elif (AFT in freeSides):
+						blockType = Materials.CORNER
+						blockAlignment = set([DOWN, SBD, AFT])
+					else:
+						blockType = Materials.SLOPE
+						blockAlignment = set([DOWN, SBD])
+				elif (PORT in freeSides):
+					if (FWD in freeSides):
+						blockType = Materials.CORNER
+						blockAlignment = set([DOWN, PORT, FWD])
+					elif (AFT in freeSides):
+						blockType = Materials.CORNER
+						blockAlignment = set([DOWN, PORT, AFT])
+					else:
+						blockType = Materials.SLOPE
+						blockAlignment = set([DOWN, PORT])
+				elif (FWD in freeSides):
+					blockType = Materials.SLOPE
+					blockAlignment = set([DOWN, FWD])
+				elif (AFT in freeSides):
+					blockType = Materials.SLOPE
+					blockAlignment = set([DOWN, AFT])
+				else:
+					blockAlignment = set([DOWN])
+			elif (SBD in freeSides):
+				if (FWD in freeSides):
+					blockType = Materials.SLOPE
+					blockAlignment = set([SBD, FWD])
+				elif (AFT in freeSides):
+					blockType = Materials.SLOPE
+					blockAlignment = set([SBD, AFT])
+				else:
+					blockAlignment = set([SBD])
+			elif (PORT in freeSides):
+				if (FWD in freeSides):
+					blockType = Materials.SLOPE
+					blockAlignment = set([PORT, FWD])
+				elif (AFT in freeSides):
+					blockType = Materials.SLOPE
+					blockAlignment = set([PORT, AFT])
+				else:
+					blockAlignment = set([PORT])
+			elif (FWD in freeSides):
+				blockAlignment = set([FWD])
+			elif (AFT in freeSides):
+				blockAlignment = set([AFT])
 			if (blockPos in self.windows):
 #####
 ##
-				#place window
+				#place window using blockType and blockAlignment (add window mass to self.structureMass)
 				pass
 ##
 #####
 			elif (blockPos not in self.doorways):
-				freeSides = set()
-				for direction in ALL_DIRECTIONS:
-					if (self.isFree(*addList(blockPos, direction))):
-						freeSides.add(direction)
-				if (not freeSides):
-					# internal structure
-					continue
-				if ((enclosure == ENCLOSURE_PLATFORM) and (DOWN not in freeSides)):
-					# wall or roof; not part of platform
-					continue
-#####
-##
-				#use freeSides to determine if a sloped block applies
-				self.addStructure(blockPos, material)
-##
-#####
+				self.addStructure(blockPos, material, blockType, blockAlignment)
+				(blockMaterial, blockType, blockAlignment) = self.structure[blockPos]
+				self.structureMass += Materials.materials[blockMaterial].mass[self.size][blockType]
 
 
 def assignPartsToRooms(rooms, size, partCounts):

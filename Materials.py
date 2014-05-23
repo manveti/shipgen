@@ -11,21 +11,21 @@ CORNER = 'corner'
 EXTERIOR_DEFAULT = "Light Armor"
 EXTERIOR_CONFIG = {
 	TYPE_SM: {
-		BLOCK:	1,
-		SLOPE:	1,
-		CORNER:	1,
+		BLOCK:	"1 2",
+		SLOPE:	"1 2",
+		CORNER:	"1 2",
 	},
 	TYPE_LG: {
-		BLOCK:	1,
-		SLOPE:	1,
-		CORNER:	1,
+		BLOCK:	"1 2",
+		SLOPE:	"1 2",
+		CORNER:	"1 2",
 	},
 }
 
 INTERIOR_DEFAULT = "Interior Wall"
 INTERIOR_CONFIG = {
 	TYPE_LG: {
-		BLOCK:	1,
+		BLOCK:	"1 1",
 	},
 }
 
@@ -46,15 +46,16 @@ class Material:
 				self.toughness[size] = {}
 				for key in [BLOCK, SLOPE, CORNER]:
 					if (key in configDict[size]):
-						blockConfig = [float(x) for x in configDict.get(key, "").split() if x]
+						blockConfig = [float(x) for x in configDict[size].get(key, "").split() if x]
 						if (blockConfig):
 							if (size not in self.mass):
 								self.mass[size] = {}
+								self.toughness[size] = {}
 							self.mass[size][key] = blockConfig.pop(0)
 						if (blockConfig):
-							if (size not in self.toughness):
-								self.toughness[size] = {}
 							self.toughness[size][key] = blockConfig.pop(0)
+						elif (key in self.mass.get(size, {})):
+							self.toughness[size][key] = self.mass[size][key]
 
 
 def init():

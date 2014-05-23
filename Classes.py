@@ -344,7 +344,6 @@ class ShipClass:
 		while (needsWork):
 			needsWork = False
 			# generate layout
-			structureMass = 0
 			ship = Ships.layoutShip(self.size, material, enclosure, symmetry, rooms, thrusters, gyros, reactors)
 			# after a few tries, accept that the peformance we want may not be possible with the parts we have
 			if (iterations > COMPROMISE_THRESHOLD):
@@ -374,7 +373,7 @@ class ShipClass:
 						break
 			iterations += 1
 			# determine mass
-			mass = partsMass + structureMass + sum(m for m in thrustersMass.values()) + gyrosMass + reactorsMass
+			mass = partsMass + ship.structureMass + sum(m for m in thrustersMass.values()) + gyrosMass + reactorsMass
 			# add thrusters if necessary
 			thrustReq = {ACCEL: mass * accel}
 			thrustReq[ACCEL_FWD] = thrustReq[ACCEL] * accelFactorFwd
@@ -470,6 +469,7 @@ class ShipClass:
 		print "accel: %s (%s, %s)"%(thrustersThrust[ACCEL]/mass,thrustersThrust[ACCEL_FWD]/mass,thrustersThrust[ACCEL_LAT]/mass)
 		print "gyros: %s (turn: %s)"%(gyros,gyrosTurn/mass)
 		print "reactors: %s (power: %s)"%(reactors,reactorsPower)
+		print "structure mass: %s"%ship.structureMass
 		print "mass: %s"%mass
 		if (ship.structure):
 			minCoords = [None,None,None]
@@ -488,7 +488,7 @@ class ShipClass:
 					for x in xrange(minCoords[0],maxCoords[0]+1):
 						if ((x,y,z) in ship.windows): line+="W"
 						elif ((x,y,z) in ship.doorways): line+="D"
-						else: line += ship.structure.get((x,y,z), " ")[0]
+						else: line += ship.structure.get((x,y,z), (" ",))[0][0]
 					print line
 		else:
 			print "no ship structure"
