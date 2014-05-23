@@ -145,9 +145,7 @@ class Ship:
 		self.structure[pos] = (material, block, alignment)
 		self.edges.add(pos)
 
-	def addRoom(self, room, partCounts, freeFactor, roomName, isBridge):
-		roomMaterial = Util.randomDict(Rooms.rooms[room].materials)
-		roomEnclosure = Util.randomDict(Rooms.rooms[room].enclosure)
+	def addRoom(self, room, partCounts, freeFactor, roomMaterial, roomEnclosure, roomName, isBridge):
 #####
 ##
 #handle symmetry and part rotation
@@ -709,7 +707,7 @@ def assignPartsToRooms(rooms, size, partCounts):
 					probDict[r] /= probSum
 				del probDict[room]
 				continue
-			roomDict = random.choice(roomList)
+			roomDict = random.choice(roomList)[0]
 			roomDict[part] = roomDict.get(part, 0) + 1
 			partCounts[part] -= 1
 #####
@@ -720,7 +718,7 @@ def assignPartsToRooms(rooms, size, partCounts):
 	# dump remaining unassigned parts into "Interior" pseudo-room
 	for part in partCounts.keys():
 		if (partCounts[part] > 0):
-			rooms[Rooms.INTERIOR][0][part] = partCounts[part]
+			rooms[Rooms.INTERIOR][0][0][part] = partCounts[part]
 
 def layoutShip(size, material, enclosure, symmetry, rooms, thrusters, gyros, reactors):
 	rooms = copy.deepcopy(rooms)
@@ -742,9 +740,8 @@ def layoutShip(size, material, enclosure, symmetry, rooms, thrusters, gyros, rea
 	for room in rooms.keys():
 		if (room == Rooms.EXTERIOR):
 			continue
-		freeRange = (Rooms.rooms[room].free[FREE_MIN], Rooms.rooms[room].free[FREE_MAX])
 		i = 0
-		for roomDict in rooms[room]:
+		for (roomDict, freeFactor, roomMaterial, roomEnclosure) in rooms[room]:
 			if (not roomDict):
 				continue
 			if (i > 0):
@@ -752,15 +749,14 @@ def layoutShip(size, material, enclosure, symmetry, rooms, thrusters, gyros, rea
 			else:
 				roomName = room
 			i += 1
-			freeFactor = random.uniform(*freeRange)
 			if (freeFactor > 1):
 				volFactor = float(freeFactor + 1) / 2
 			else:
 				volFactor = 1
 			if ((Rooms.rooms[room].windows > 0) and (roomDict.get("Cockpit", 0) > 0)):
-				bridgeRooms.append((room, roomDict, freeFactor, roomName))
+				bridgeRooms.append((room, roomDict, freeFactor, roomMaterial, roomEnclosure, roomName))
 			else:
-				nonBridgeRooms.append((room, roomDict, freeFactor, roomName))
+				nonBridgeRooms.append((room, roomDict, freeFactor, roomMaterial, roomEnclosure, roomName))
 			for part in roomDict.keys():
 				partsVol += reduce(lambda x, y: x * y, Parts.parts[size][part].size, volFactor)
 				partMin = min(Parts.parts[size][part].size)
@@ -783,8 +779,8 @@ def layoutShip(size, material, enclosure, symmetry, rooms, thrusters, gyros, rea
 		curRooms = nonBridgeRooms
 		handlingBridge = False
 	while (curRooms):
-		(room, partCounts, freeFactor, roomName) = curRooms.pop(0)
-		retval.addRoom(room, partCounts, freeFactor, roomName, handlingBridge)
+		(room, partCounts, freeFactor, roomMaterial, roomEnclosure, roomName) = curRooms.pop(0)
+		retval.addRoom(room, partCounts, freeFactor, roomMaterial, roomEnclosure, roomName, handlingBridge)
 		if ((handlingBridge) and (not curRooms)):
 			curRooms = nonBridgeRooms
 			handlingBridge = False

@@ -76,7 +76,7 @@ class Room:
 
 		enclosureSum = 0
 		self.enclosure = {}
-		for encType in [ENCLOSURE_NONE, ENCLOSURE_PLATFORM, ENCLOSURE_FULL, ENCLOSURE_SEALED]:
+		for encType in ENCLOSURE_SCALE:
 			self.enclosure[encType] = float(configDict.get(ENCLOSURE, {}).get(encType, 0))
 			enclosureSum += self.enclosure[encType]
 		if (enclosureSum > 0):

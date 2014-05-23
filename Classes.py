@@ -73,7 +73,7 @@ class ShipClass:
 
 		enclosureSum = 0
 		self.enclosure = {}
-		for encType in [ENCLOSURE_NONE, ENCLOSURE_PLATFORM, ENCLOSURE_FULL, ENCLOSURE_SEALED]:
+		for encType in ENCLOSURE_SCALE:
 			self.enclosure[encType] = float(configDict.get(ENCLOSURE, {}).get(encType, 0))
 			enclosureSum += self.enclosure[encType]
 		if (enclosureSum > 0):
@@ -316,16 +316,23 @@ class ShipClass:
 			    maxPartPower = Parts.parts[self.size][part].power
 		# assign parts to rooms
 		rooms = {}
+		enclosureIndex = ENCLOSURE_SCALE.index(enclosure)
 		for room in roomCounts.keys():
 			if (roomCounts[room] <= 0):
 				continue
 			rooms[room] = []
+			freeRange = (Rooms.rooms[room].free[FREE_MIN], Rooms.rooms[room].free[FREE_MAX])
 			for i in xrange(roomCounts[room]):
 				roomDict = {}
 				for (part, partDict) in Rooms.rooms[room].parts.items():
 					roomDict[part] = partDict[PART_MIN]
 					partCounts[part] -= roomDict[part]
-				rooms[room].append(roomDict)
+				freeFactor = random.uniform(*freeRange)
+				roomMaterial = Util.randomDict(Rooms.rooms[room].materials)
+				roomEnclosure = Util.randomDict(Rooms.rooms[room].enclosure)
+				if (ENCLOSURE_SCALE.index(roomEnclosure) < enclosureIndex):
+					roomEnclosure = ENCLOSURE_SCALE[enclosureIndex]
+				rooms[room].append((roomDict, freeFactor, roomMaterial, roomEnclosure))
 		Ships.assignPartsToRooms(rooms, self.size, partCounts)
 		# generate layout and add thrusters, gyros, and reactors
 		thrusters = {}
