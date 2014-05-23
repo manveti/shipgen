@@ -402,7 +402,7 @@ class ShipClass:
 						thrusters[d][thruster] = thrusters[d].get(thruster, 0) + n
 						thrustersMass[d] += n * thruster.mass * THRUST_DIRECTION_COUNTS[d]
 						thrustersThrust[d] += n * thruster.thrust
-						thrustersPower[d] += n * thruster.power * THRUST_DIRECTION_COUNTS[d]
+						thrustersPower[d] += n * thruster.power
 						thrustReq[d] -= n * thruster.thrust
 			# add gyros if necessary
 			turnReq = mass * turn

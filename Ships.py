@@ -556,6 +556,8 @@ class Ship:
 				self.occupied[x][y].update(xrange(roomPos[2] - 1, roomPos[2] + roomSize[2] + 1))
 
 	def finalizeInterior(self, material, enclosure):
+		self.structureMass = 0
+
 #####
 ##
 		#for doorPos in self.doorways.keys():
