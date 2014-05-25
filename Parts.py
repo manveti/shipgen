@@ -15,6 +15,15 @@ DOORS = 'doors'
 ACCESS = 'access'
 ROOMS = 'rooms'
 
+DOOR  = "Door"
+DOOR_CONFIG = {
+	MASS:	"642.4",
+	POWER:	"0.001",
+	SIZE:	"1 1 1",
+	ATTACHMENTS:	["0 0 1", "0 0 -1", "1 0 0", "-1 0 0"],
+	ACCESS:	["0 1 0", "0 -1 0"],
+}
+
 PRIORITIZATION_MASS_FACTOR = .5
 
 
@@ -74,6 +83,8 @@ def init():
 		return
 	for size in SIZES:
 		parts[size] = {}
+		if (size == TYPE_LG):
+			parts[size][DOOR] = Part(DOOR, DOOR_CONFIG)
 		configPath = os.path.join(os.path.dirname(__file__), "data", "parts_%s.cfg" % TYPE_ABBRS[size])
 		configDict = ConfigFile.readFile(configPath)
 		allReactors = []

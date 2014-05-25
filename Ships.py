@@ -51,6 +51,7 @@ class Ship:
 		self.structure = {}
 		self.edges = set()
 		self.structureMass = 0
+		self.blocks = set()
 
 	def getObstruction(self, x0, y0, z0, w=1, l=1, h=1):
 		for x in xrange(x0, x0 + w):
@@ -557,17 +558,19 @@ class Ship:
 
 	def finalizeInterior(self, material, enclosure):
 		self.structureMass = 0
+		self.blocks = set()
 
-#####
-##
-		#for doorPos in self.doorways.keys():
-		#  if doorPos in self.structure: del self.structure[doorPos]
-		#  if doorPos in self.edges: self.edges.remove(doorPos)
-		#  (direction, doorProb) = self.doorways[doorPos]
-		#  if (random.random() < doorProb):
-		#    add a door facing in specified direction (add door mass to self.structureMass)
-##
-#####
+		# generate doors
+		for doorPos in self.doorways.keys():
+			# remove structure for doorway
+			if (doorPos in self.structure):
+				del self.structure[doorPos]
+			if (doorPos in self.edges):
+				self.edges.remove(doorPos)
+			(direction, doorProb) = self.doorways[doorPos]
+			if (random.random() < doorProb):
+				self.blocks.add((Parts.DOOR, doorPos, direction))
+				self.structureMass += Parts.parts[TYPE_LG][Parts.DOOR].mass
 
 		# generate hull
 		if (enclosure == ENCLOSURE_NONE):
@@ -581,6 +584,7 @@ class Ship:
 				# internal structure
 				if (blockPos in self.structure):
 					(blockMaterial, blockType, blockAlignment) = self.structure[blockPos]
+					self.blocks.add((blockMaterial, blockPos, None))
 					self.structureMass += Materials.materials[blockMaterial].mass[self.size][blockType]
 				continue
 			if ((enclosure == ENCLOSURE_PLATFORM) and (DOWN not in freeSides)):
@@ -672,14 +676,24 @@ class Ship:
 			if (blockPos in self.windows):
 #####
 ##
-				#place window using blockType and blockAlignment (add window mass to self.structureMass)
 				pass
+				#self.blocks.add((windowBlockName, blockPos, direction))
+				#self.structureMass += windowMass
 ##
 #####
 			elif (blockPos not in self.doorways):
 				self.addStructure(blockPos, material, blockType, blockAlignment)
 				(blockMaterial, blockType, blockAlignment) = self.structure[blockPos]
+				self.blocks.add((blockMaterial, blockPos, None))
 				self.structureMass += Materials.materials[blockMaterial].mass[self.size][blockType]
+
+	def finalizeParts(self):
+#####
+##
+		pass
+		#add everything in self.parts to self.blocks
+##
+#####
 
 
 def assignPartsToRooms(rooms, size, partCounts):
