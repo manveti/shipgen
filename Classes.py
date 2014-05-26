@@ -351,7 +351,7 @@ class ShipClass:
 		while (needsWork):
 			needsWork = False
 			# generate layout
-			ship = Ships.layoutShip(self.size, material, enclosure, symmetry, rooms, thrusters, gyros, reactors)
+			ship = Ships.layoutShip(self.shipType, material, enclosure, symmetry, rooms, thrusters, gyros, reactors)
 			# after a few tries, accept that the peformance we want may not be possible with the parts we have
 			if (iterations > COMPROMISE_THRESHOLD):
 				if ((accel > self.accel[ACCEL_MIN]) or (turn > self.turn[TURN_MIN])):
@@ -501,6 +501,7 @@ class ShipClass:
 			print "no ship structure"
 ##
 #####
+		return ship
 
 
 def init():

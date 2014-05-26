@@ -37,8 +37,9 @@ def addList(l1, l2):
 	return [l1[i] + l2[i] for i in xrange(min(len(l1), len(l2)))]
 
 class Ship:
-	def __init__(self, shipSize, symmetry, targetSize):
-		self.size = shipSize
+	def __init__(self, shipType, symmetry, targetSize):
+		self.shipType = shipType
+		self.size = TYPE_SIZES[self.shipType]
 		self.symmetry = symmetry
 		self.targetEdges = {PORT: int(-targetSize[0] / 2), SBD: int(targetSize[0] / 2),
 							FWD: int(-targetSize[1] / 2), AFT: int(targetSize[1] / 2),
@@ -695,6 +696,54 @@ class Ship:
 ##
 #####
 
+	def generateXML(self, entityId=None, pos=(0, 0, 0), fwd=(0, -1, 0), up=(0, 0, 1)):
+		if (entityId is None):
+#####
+##
+			entityId = 12345
+##
+#####
+		retval = ['<MyObjectBuilder_EntityBase xsi:type="MyObjectBuilder_CubeGrid">',
+					"  <EntityId>%s</EntityId>" % entityId,
+					"  <PersistentFlags>CastShadows InScene</PersistentFlags>",
+					"  <PositionAndOrientation>",
+					'    <Position x="%s" y="%s" z="%s" />' % pos,
+					'    <Forward x="%s" y="%s" z="%s" />' % fwd,
+					'    <Up x="%s" y="%s" z="%s" />' % up,
+					"  </PositionAndOrientation>"]
+		if (self.size == TYPE_SM):
+			retval.append("  <GridSizeEnum>Small</GridSizeEnum>")
+		else:
+			retval.append("  <GridSizeEnum>Large</GridSizeEnum>")
+		entityId += 1
+		retval.append("  <CubeBlocks>")
+#####
+##
+		#blocks
+##
+#####
+		retval.append("  </CubeBlocks>")
+		if (self.shipType == TYPE_ST):
+			retval.append("  <IsStatic>true</IsStatic>")
+		else:
+			retval.append("  <IsStatic>false</IsStatic>")
+		retval.append("  <Skeleton />")
+		retval.append('  <LinearVelocity x="0" y="0" z="0" />')
+		retval.append('  <AngularVelocity x="0" y="0" z="0" />')
+		retval.append('  <XMirroxPlane xsi:nil="true" />')
+		retval.append('  <YMirroxPlane xsi:nil="true" />')
+		retval.append('  <ZMirroxPlane xsi:nil="true" />')
+		retval.append("  <ConveyorLines>")
+#####
+##
+		#conveyor lines
+##
+#####
+		retval.append("  </ConveyorLines>")
+		retval.append("  <BlockGroups />")
+		retval.append("</MyObjectBuilder_EntityBase>")
+		return retval
+
 
 def assignPartsToRooms(rooms, size, partCounts):
 	for part in partCounts.keys():
@@ -736,7 +785,8 @@ def assignPartsToRooms(rooms, size, partCounts):
 		if (partCounts[part] > 0):
 			rooms[Rooms.INTERIOR][0][0][part] = partCounts[part]
 
-def layoutShip(size, material, enclosure, symmetry, rooms, thrusters, gyros, reactors):
+def layoutShip(shipType, material, enclosure, symmetry, rooms, thrusters, gyros, reactors):
+	size = TYPE_SIZES[shipType]
 	rooms = copy.deepcopy(rooms)
 	# get non-empty, non-"Exterior" rooms; split into "bridge" (cockpit and possible windows) and non-"bridge" rooms
 	bridgeRooms = []
@@ -785,7 +835,7 @@ def layoutShip(size, material, enclosure, symmetry, rooms, thrusters, gyros, rea
 	targetHeight = max(targetWidth * TARGET_HEIGHT_FACTOR, minHeight)
 	targetLength = targetWidth * TARGET_LENGTH_FACTOR
 	# create ship; add rooms
-	retval = Ship(size, symmetry, (targetWidth, targetLength, targetHeight))
+	retval = Ship(shipType, symmetry, (targetWidth, targetLength, targetHeight))
 	random.shuffle(bridgeRooms)
 	random.shuffle(nonBridgeRooms)
 	if (bridgeRooms):
@@ -807,4 +857,5 @@ def layoutShip(size, material, enclosure, symmetry, rooms, thrusters, gyros, rea
 	#add "Exterior" parts
 ##
 #####
+	retval.finalizeParts()
 	return retval
