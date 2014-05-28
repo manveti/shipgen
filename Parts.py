@@ -46,13 +46,39 @@ class Part:
 		self.size = [int(x) for x in configDict.get(SIZE, "").split() if x][:3]
 		self.size += [1] * (3 - len(self.size))
 
-#####
-##
-		#handle attachment points (ATTACHMENTS)
-		#handle cargo doors (DOORS)
-		#handle access requirements (ACCESS)
-##
-#####
+		self.attachments = set()
+		for attachConfig in configDict.get(ATTACHMENTS, []):
+			attachment = [int(x) for x in attachConfig.split() if x][:3]
+			attachment += [0] * (3 - len(attachment))
+			self.attachments.add(tuple(attachment))
+
+		self.doors = set()
+		for doorConfig in configDict.get(DOORS, []):
+			doorPos = [int(x) for x in doorConfig.split() if x][:3]
+			doorPos += [0] * (3 - len(doorPos))
+			self.doors.add(tuple(doorPos))
+
+		self.accessRequirements = {}
+		reqPoints = set()
+		reqCount = 0
+		for accessConfig in configDict.get(ACCESS, []):
+			accessPos = [int(x) for x in accessConfig.split() if x][:3]
+			if (len(accessPos) == 1):
+				if (reqPoints):
+					if (reqCount <= 0):
+						reqCount = len(reqPoints)
+					accessSpec = (reqCount, reqPoints)
+					self.accessRequirements[id(accessSpec)] = accessSpec
+				reqPoints = set()
+				reqCount = accessPos[0]
+			else:
+				accessPos += [0] * (3 - len(accessPos))
+				reqPoints.add(tuple(accessPos))
+		if (reqPoints):
+			if (reqCount <= 0):
+				reqCount = len(reqPoints)
+			accessSpec = (reqCount, reqPoints)
+			self.accessRequirements[id(accessSpec)] = accessSpec
 
 		interiorProb = 1
 		self.rooms = {}
@@ -130,11 +156,24 @@ def writeParts(partsDir):
 				if (part.turn):
 					f.write("\t%s:\t%s\n" % (TURN, part.turn))
 				f.write("\t%s:\t%s\n" % (SIZE, " ".join(map(str, part.size))))
-#####
-##
-				#ATTACHMENTS, DOORS, ACCESS
-##
-#####
+				if (part.attachments):
+					f.write("\t%s: [\n" % ATTACHMENTS)
+					for attachment in part.attachments:
+						f.write("\t\t%s\n" % (" ".join(map(str, attachment))))
+					f.write("\t]\n")
+				if (part.doors):
+					f.write("\t%s: [\n" % DOORS)
+					for doorPos in part.doors:
+						f.write("\t\t%s\n" % (" ".join(map(str, doorPos))))
+					f.write("\t]\n")
+				if (part.accessRequirements):
+					f.write("\t%s: [\n" % ACCESS)
+					for (reqCount, reqPoints) in part.accessRequirements.values():
+						if (reqCount != len(reqPoints)):
+							f.write("\t\t%s\n" % reqCount)
+						for accessPos in reqPoints:
+							f.write("\t\t%s\n" % (" ".join(map(str, accessPos))))
+					f.write("\t]\n")
 				if (part.rooms):
 					f.write("\t%s: {\n" % ROOMS)
 					for room in part.rooms.keys():
