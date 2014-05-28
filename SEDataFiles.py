@@ -211,8 +211,4 @@ def generateParts(blockDir, partsDir):
 				part.turn = blocks[size][blockName][Parts.TURN]
 			Parts.parts[SIZE_MAP[size]][blockName] = part
 
-#####
-##
-	#Parts.writeParts(partsDir)
-##
-#####
+	Parts.writeParts(partsDir)

@@ -1,4 +1,4 @@
-import os.path
+import os
 
 import ConfigFile
 import Rooms
@@ -105,3 +105,41 @@ def init():
 		thrusters[size] = prioritizeByEfficiency(allThrusters)
 		gyros[size] = prioritizeByEfficiency(allGyros)
 	initialized = True
+
+def writeParts(partsDir):
+	if (not parts):
+		return
+	try:
+		os.makedirs(partsDir)
+	except OSError:
+		# it's okay if it already exists
+		pass
+	for size in parts.keys():
+		f = open(os.path.join(partsDir, "parts_%s.cfg" % TYPE_ABBRS[size]), "w")
+		try:
+			f.write("# %s parts\n" % size)
+			for partName in parts[size].keys():
+				part = parts[size][partName]
+				f.write("\n%s: {\n" % partName)
+				if (part.mass):
+					f.write("\t%s:\t%s\n" % (MASS, part.mass))
+				if (part.power):
+					f.write("\t%s:\t%s\n" % (POWER, part.power))
+				if (part.thrust):
+					f.write("\t%s:\t%s\n" % (THRUST, part.thrust))
+				if (part.turn):
+					f.write("\t%s:\t%s\n" % (TURN, part.turn))
+				f.write("\t%s:\t%s\n" % (SIZE, " ".join(map(str, part.size))))
+#####
+##
+				#ATTACHMENTS, DOORS, ACCESS
+##
+#####
+				if (part.rooms):
+					f.write("\t%s: {\n" % ROOMS)
+					for room in part.rooms.keys():
+						f.write("\t\t%s:\t%s\n" % (room, part.rooms[room]))
+					f.write("\t}\n")
+				f.write("}\n")
+		finally:
+			f.close()
