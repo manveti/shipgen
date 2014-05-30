@@ -561,6 +561,24 @@ class Ship:
 		self.structureMass = 0
 		self.blocks = set()
 
+		if (enclosure == ENCLOSURE_FULL):
+			# generate outgoing doorways
+#####
+##
+#handle symmetry
+#exclude windows
+#maybe only pick a few directions (prefer sides, then fore, then aft, then top/bottom)
+			potentialDirectionDoors = {}
+			for doorPos in self.potentialDoorways.keys():
+				(direction, doorProb) = self.potentialDoorways[doorPos]
+				if (direction not in potentialDirectionDoors):
+					potentialDirectionDoors[direction] = []
+				potentialDirectionDoors[direction].append(doorPos)
+			for direction in potentialDirectionDoors.keys():
+				self.doorways[random.choice(potentialDirectionDoors[direction])] = (direction, 1)
+##
+#####
+
 		# generate doors
 		for doorPos in self.doorways.keys():
 			# remove structure for doorway
