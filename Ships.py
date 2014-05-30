@@ -479,20 +479,64 @@ class Ship:
 			if (req[1]):
 				accessRequirements[id(req)] = req
 
+		# place parts
+		roomParts = {}
+		occupied = set()
+		accessReq = {}
+		for part in reversed(sorted(partCounts.keys(), key=lambda p: reduce(lambda x, y: x * y, Parts.parts[self.size][p].size, 1))):
+			partSize = Parts.parts[self.size][part].size
+			partAccess = Parts.parts[self.size][part].accessRequirements
+			for i in xrange(partCounts[part]):
+				if (i > 0):
+					partName = "%s %s %d" % (roomName, part, i)
+				else:
+					partName = "%s %s" % (roomName, part)
+				while (True):
+					bounds = [(roomPos[i], roomPos[i] + roomSize[i] + 1 - partSize[i]) for i in xrange(len(roomSize))]
+					choices = set((x, y, z) for x in xrange(*bounds[0]) for y in xrange(*bounds[1]) for z in xrange(*bounds[2]))
+					for (x, y, z) in occupied:
+						for i in xrange(partSize[0]):
+							for j in xrange(partSize[1]):
+								for k in xrange(partSize[2]):
+									pos = (x - i, y - j, z - k)
+									if (pos in choices):
+										choices.remove(pos)
 #####
 ##
-		#for part in partCounts.keys() sorted largest to smallest:
-		#  #reversed(sorted(partCounts.keys(), key=lambda p: reduce(lambda x, y: x * y, Parts.parts[self.size][p].size, 1)))
-		#  for i in xrange(partCounts[part]):
-		#    pick a location for part
-		#      if nowhere available, pick a random expandable direction and expand (retraverse expanded side as above)
-		#    when key of incomingDoorways filled: del self.potentialDoorways[incomingDoorways[key]]; del incomingDoorways[key]
-		#    make sure its access requirements are free and that all access requirements have paths to link up
-		#      when only one path to link up access requirements, set all spaces in path as access requirements
-		#    remove affected spaces from accessRequirements (making sure we have at least accessRequirements[key][0] left)
-		#      if affected space in incomingDoorways: del self.potentialDoorways[incomingDoorways[blockPos]]
+					#trim choices to remove places which don't fit partAccess
+					#trim choices to remove places which prevent all access requirements from linking up
 ##
 #####
+					if (choices):
+						partPos = random.choice(list(choices))
+						partSpaces = set()
+						for i in xrange(partSize[0]):
+							for j in xrange(partSize[1]):
+								for k in xrange(partSize[2]):
+									pos = (partPos[0] + i, partPos[1] + j, partPos[2] + k)
+									partSpaces.add(pos)
+									occupied.add(pos)
+						partAccessRequirements = {}
+						for req in partAccess.values():
+							reqPoints = set()
+							for point in req[1]:
+								reqPoints.add(tuple(addList(point, partPos)))
+							accessSpec = (req[0], reqPoints)
+							partAccessRequirements[id(accessSpec)] = accessSpec
+							accessReq[id(accessSpec)] = accessSpec
+						roomParts[partName] = (part, partPos, FWD, UP, partSpaces, partAccessRequirements)
+						break
+#####
+##
+					break
+					#pick largest open space and try to move overlapping parts out of the way
+					#if successful, pick appropriate partPos and repeat rest of "if (choices)" block above (including break)
+					#pick random expandable direction; expand wall (retraverse expanded side as above)
+##
+#####
+		# copy temporary parts dictionary into ship-wide one
+		for partName in roomParts.keys():
+			self.parts[partName] = roomParts[partName][:4]
 
 		# turn potential incoming doorways into actual doorways
 		roomDoorProb = Rooms.rooms[room].doors

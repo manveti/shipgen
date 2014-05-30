@@ -487,6 +487,9 @@ class ShipClass:
 						minCoords[i]=pos[i]
 					if ((maxCoords[i] is None) or (pos[i]>maxCoords[i])):
 						maxCoords[i]=pos[i]
+			partsByLoc = {}
+			for (part, partPos, partFwd, partUp) in ship.parts.values():
+				partsByLoc[partPos] = part[0].lower()
 			print "ship structure slices:"
 			for z in xrange(minCoords[2],maxCoords[2]+1):
 				print "z=%s"%z
@@ -495,6 +498,7 @@ class ShipClass:
 					for x in xrange(minCoords[0],maxCoords[0]+1):
 						if ((x,y,z) in ship.windows): line+="W"
 						elif ((x,y,z) in ship.doorways): line+="D"
+						elif ((x,y,z) in partsByLoc): line+=partsByLoc[(x,y,z)]
 						else: line += ship.structure.get((x,y,z), (" ",))[0][0]
 					print line
 		else:
