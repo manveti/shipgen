@@ -108,7 +108,7 @@ def init():
 	if (initialized):
 		return
 	for size in SIZES:
-		parts[size] = {}
+		parts[size] = ConfigFile.OrderedDict()
 		if (size == TYPE_LG):
 			parts[size][DOOR] = Part(DOOR, DOOR_CONFIG)
 		configPath = os.path.join(os.path.dirname(__file__), "data", "parts_%s.cfg" % TYPE_ABBRS[size])
