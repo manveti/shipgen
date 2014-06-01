@@ -28,6 +28,10 @@ PARTS = 'parts'
 PART_DISTRIBUTION = 'dist'
 ROOMS = 'rooms'
 ROOM_DISTRIBUTION = 'dist'
+DOORS = 'doors'
+DOOR_DISTRIBUTION = 'dist'
+DOOR_MIN = 'min'
+DOOR_MAX = 'max'
 
 DEFAULTS = {
 	MATERIALS:	Materials.EXTERIOR_DEFAULT,
@@ -208,6 +212,30 @@ class ShipClass:
 					if (x >= 0):
 						self.rooms[room][key] = x
 
+		self.doors = {}
+		doorConfig = configDict.get(DOORS)
+		if (doorConfig):
+			if (doorConfig[0] == '"'):
+				idx = doorConfig.find('"', 1)
+				if (idx > 0):
+					self.doors[DOOR_DISTRIBUTION] = doorConfig[1 : idx]
+					doorConfig = doorConfig[idx + 1:].strip()
+			doorConfig = [x for x in doorConfig.split() if x]
+			if (DOOR_DISTRIBUTION not in self.doors):
+				self.doors[DOOR_DISTRIBUTION] = doorConfig.pop(0)
+			if (self.doors[DOOR_DISTRIBUTION] not in Dists.dists):
+#####
+##
+				#warn about unrecognized distribution
+				pass
+##
+#####
+			for key in [DOOR_MIN, DOOR_MAX]:
+				if (doorConfig):
+					x = int(doorConfig.pop(0))
+					if (x >= 0):
+						self.doors[key] = x
+
 	def fixCounts(self, partCounts, roomCounts):
 		# first pass: each room individually
 		partMins = {}
@@ -314,6 +342,15 @@ class ShipClass:
 			partsPower += Parts.parts[self.size][part].power * partCounts[part]
 			if (Parts.parts[self.size][part].power > maxPartPower):
 			    maxPartPower = Parts.parts[self.size][part].power
+		# select number of doors
+		if ((self.doors) and (self.doors[DOOR_DISTRIBUTION] in Dists.dists)):
+			doors = Dists.dists[self.doors[DOOR_DISTRIBUTION]].getCount()
+			if ((DOOR_MIN in self.doors) and (doors < self.doors[DOOR_MIN])):
+				doors = self.doors[DOOR_MIN]
+			if ((DOOR_MAX in self.doors) and (doors > self.doors[DOOR_MAX])):
+				doors = self.doors[DOOR_MAX]
+		else:
+			doors = random.choice(([1] * 6) + ([2] * 5) + ([3] * 4) + ([4] * 3))
 		# assign parts to rooms
 		rooms = {}
 		enclosureIndex = ENCLOSURE_SCALE.index(enclosure)
@@ -351,7 +388,7 @@ class ShipClass:
 		while (needsWork):
 			needsWork = False
 			# generate layout
-			ship = Ships.layoutShip(self.shipType, material, enclosure, symmetry, rooms, thrusters, gyros, reactors)
+			ship = Ships.layoutShip(self.shipType, material, enclosure, symmetry, rooms, thrusters, gyros, reactors, doors)
 			# after a few tries, accept that the peformance we want may not be possible with the parts we have
 			if (iterations > COMPROMISE_THRESHOLD):
 				if ((accel > self.accel[ACCEL_MIN]) or (turn > self.turn[TURN_MIN])):

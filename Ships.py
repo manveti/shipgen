@@ -601,7 +601,7 @@ class Ship:
 					self.occupied[x][y] = set()
 				self.occupied[x][y].update(xrange(roomPos[2] - 1, roomPos[2] + roomSize[2] + 1))
 
-	def finalizeInterior(self, material, enclosure):
+	def finalizeInterior(self, material, enclosure, doors):
 		self.structureMass = 0
 		self.blocks = set()
 
@@ -611,15 +611,22 @@ class Ship:
 ##
 #handle symmetry
 #exclude windows
-#maybe only pick a few directions (prefer sides, then fore, then aft, then top/bottom)
 			potentialDirectionDoors = {}
 			for doorPos in self.potentialDoorways.keys():
 				(direction, doorProb) = self.potentialDoorways[doorPos]
 				if (direction not in potentialDirectionDoors):
 					potentialDirectionDoors[direction] = []
 				potentialDirectionDoors[direction].append(doorPos)
-			for direction in potentialDirectionDoors.keys():
+			directions = [SBD, PORT]
+			random.shuffle(directions)
+			directions += [FWD, AFT, UP, DOWN]
+			for direction in directions:
+				if (doors <= 0):
+					break
+				if (direction not in potentialDirectionDoors):
+					continue
 				self.doorways[random.choice(potentialDirectionDoors[direction])] = (direction, 1)
+				doors -= 1
 ##
 #####
 
@@ -847,7 +854,7 @@ def assignPartsToRooms(rooms, size, partCounts):
 		if (partCounts[part] > 0):
 			rooms[Rooms.INTERIOR][0][0][part] = partCounts[part]
 
-def layoutShip(shipType, material, enclosure, symmetry, rooms, thrusters, gyros, reactors):
+def layoutShip(shipType, material, enclosure, symmetry, rooms, thrusters, gyros, reactors, doors):
 	size = TYPE_SIZES[shipType]
 	rooms = copy.deepcopy(rooms)
 	# get non-empty, non-"Exterior" rooms; split into "bridge" (cockpit and possible windows) and non-"bridge" rooms
@@ -913,7 +920,7 @@ def layoutShip(shipType, material, enclosure, symmetry, rooms, thrusters, gyros,
 			curRooms = nonBridgeRooms
 			handlingBridge = False
 	# add hull, doors, and windows
-	retval.finalizeInterior(material, enclosure)
+	retval.finalizeInterior(material, enclosure, doors)
 #####
 ##
 	#add "Exterior" parts
