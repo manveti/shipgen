@@ -20,6 +20,7 @@ PORT = (-1, 0, 0)
 FWD = (0, -1, 0)
 AFT = (0, 1, 0)
 ALL_DIRECTIONS = [UP, DOWN, SBD, PORT, FWD, AFT]
+SE_DIRECTIONS = {UP: "Up", DOWN: "Down", SBD: "Right", PORT: "Left", FWD: "Forward", AFT: "Backward"}
 
 ENCLOSURE_DOOR_DIRECTIONS = {
 	ENCLOSURE_PLATFORM:	set([DOWN]),
@@ -786,9 +787,27 @@ class Ship:
 			retval.append("  <GridSizeEnum>Large</GridSizeEnum>")
 		entityId += 1
 		retval.append("  <CubeBlocks>")
+		for (blockName, blockPos, blockAlign) in self.blocks:
 #####
 ##
-		#blocks
+			retval.append("    <MyObjectBuilder_CubeBlock>")
+			retval.append("      <SubtypeName>%s</SubtypeName>" % blockName)
+			retval.append('      <Min x="%s" y="%s" z="%s" />' % blockPos)
+			if (blockAlign is None):
+				fwd = FWD
+				up = UP
+			elif (blockAlign in SE_DIRECTIONS):
+				fwd = SE_DIRECTIONS[blockAlign]
+				if (blockAlign in [UP, DOWN]):
+					up = SE_DIRECTIONS[FWD]
+				else:
+					up = SE_DIRECTIONS[UP]
+			else:
+				fwd = SE_DIRECTIONS[blockAlign][0]
+				up = SE_DIRECTIONS[blockAlign][1]
+			retval.append('      <BlockOrientation Forward="%s" Up="%s" />' % (fwd, up))
+			retval.append('      <ColorMaskHSV x="0" y="-1" z="0" />')
+			retval.append("    </MyObjectBuilder_CubeBlock>")
 ##
 #####
 		retval.append("  </CubeBlocks>")
