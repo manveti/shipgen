@@ -54,6 +54,7 @@ class Ship:
 		self.edges = set()
 		self.structureMass = 0
 		self.blocks = set()
+		self.attachmentPoints = {}
 
 	def getObstruction(self, x0, y0, z0, w=1, l=1, h=1):
 		for x in xrange(x0, x0 + w):
@@ -605,6 +606,7 @@ class Ship:
 	def finalizeInterior(self, material, enclosure, doors):
 		self.structureMass = 0
 		self.blocks = set()
+		self.attachmentPoints = {}
 
 		if (enclosure == ENCLOSURE_FULL):
 			# generate outgoing doorways
@@ -693,6 +695,11 @@ class Ship:
 					blockAlignment = set([UP, AFT])
 				else:
 					blockAlignment = set([UP])
+					if ((blockPos not in self.windows) and (blockPos not in self.doors)):
+						attachmentPoint = tuple(addList(blockPos, UP))
+						if (attachmentPoint not in self.attachmentPoints):
+							self.attachmentPoints[attachmentPoint] = set()
+						self.attachmentPoints[attachmentPoint].add(blockPos)
 			elif (DOWN in freeSides):
 				if (SBD in freeSides):
 					if (FWD in freeSides):
@@ -722,6 +729,11 @@ class Ship:
 					blockAlignment = set([DOWN, AFT])
 				else:
 					blockAlignment = set([DOWN])
+					if ((blockPos not in self.windows) and (blockPos not in self.doors)):
+						attachmentPoint = tuple(addList(blockPos, DOWN))
+						if (attachmentPoint not in self.attachmentPoints):
+							self.attachmentPoints[attachmentPoint] = set()
+						self.attachmentPoints[attachmentPoint].add(blockPos)
 			elif (SBD in freeSides):
 				if (FWD in freeSides):
 					blockType = Materials.SLOPE
@@ -731,6 +743,11 @@ class Ship:
 					blockAlignment = set([SBD, AFT])
 				else:
 					blockAlignment = set([SBD])
+					if ((blockPos not in self.windows) and (blockPos not in self.doors)):
+						attachmentPoint = tuple(addList(blockPos, SBD))
+						if (attachmentPoint not in self.attachmentPoints):
+							self.attachmentPoints[attachmentPoint] = set()
+						self.attachmentPoints[attachmentPoint].add(blockPos)
 			elif (PORT in freeSides):
 				if (FWD in freeSides):
 					blockType = Materials.SLOPE
@@ -740,10 +757,25 @@ class Ship:
 					blockAlignment = set([PORT, AFT])
 				else:
 					blockAlignment = set([PORT])
+					if ((blockPos not in self.windows) and (blockPos not in self.doors)):
+						attachmentPoint = tuple(addList(blockPos, PORT))
+						if (attachmentPoint not in self.attachmentPoints):
+							self.attachmentPoints[attachmentPoint] = set()
+						self.attachmentPoints[attachmentPoint].add(blockPos)
 			elif (FWD in freeSides):
 				blockAlignment = set([FWD])
+				if ((blockPos not in self.windows) and (blockPos not in self.doors)):
+					attachmentPoint = tuple(addList(blockPos, FWD))
+					if (attachmentPoint not in self.attachmentPoints):
+						self.attachmentPoints[attachmentPoint] = set()
+					self.attachmentPoints[attachmentPoint].add(blockPos)
 			elif (AFT in freeSides):
 				blockAlignment = set([AFT])
+				if ((blockPos not in self.windows) and (blockPos not in self.doors)):
+					attachmentPoint = tuple(addList(blockPos, AFT))
+					if (attachmentPoint not in self.attachmentPoints):
+						self.attachmentPoints[attachmentPoint] = set()
+					self.attachmentPoints[attachmentPoint].add(blockPos)
 			if (blockPos in self.windows):
 #####
 ##
@@ -757,6 +789,25 @@ class Ship:
 				(blockMaterial, blockType, blockAlignment) = self.structure[blockPos]
 				self.blocks.add((blockMaterial, blockPos, None))
 				self.structureMass += Materials.materials[blockMaterial].mass[self.size][blockType]
+
+	def addExterior(self, partCounts):
+#####
+##
+		pass
+		#for part in self.parts:
+		#  for attachment in Parts.parts[part].attachments:
+		#    attachmentPoint = tuple(addList(self.parts[part][1], attachment)) #handle part rotation
+		#    if (self.isFree(*attachmentPoint)):
+		#      if (attachmentPoint not in self.attachmentPoints):
+		#        self.attachmentPoints[attachmentPoint] = set()
+		#      self.attachmentPoints[attachmentPoint].add(coords adjacent to attachmentPoint inside part)
+		#if nothing placed yet and cockpit in partCounts: place at (int(-cockpit_size[0] / 2), self.targetEdges[FWD], int(cockpit_size[2] / 2))
+		#for part in reversed(sorted(partCounts.keys(), key=lambda p: number of attachment points for part p)):
+		#  if nothing placed yet: place at (0,0,0)
+		#  else: place at attachment point which maximizes (occupied blocks in contact - access blocks in contact)
+		#  update available attachment points
+##
+#####
 
 	def finalizeParts(self):
 #####
@@ -940,10 +991,14 @@ def layoutShip(shipType, material, enclosure, symmetry, rooms, thrusters, gyros,
 			handlingBridge = False
 	# add hull, doors, and windows
 	retval.finalizeInterior(material, enclosure, doors)
-#####
-##
-	#add "Exterior" parts
-##
-#####
+	# add exterior parts
+	partCounts = {}
+	exteriorRooms = rooms.get(Rooms.EXTERIOR, [])
+	if (exteriorRooms):
+		exteriorSpec = exteriorRooms[0]
+		if (exteriorSpec):
+			partCounts = exteriorSpec[0]
+	retval.addExterior(partCounts)
+	# finalize ship
 	retval.finalizeParts()
 	return retval
