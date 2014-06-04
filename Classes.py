@@ -527,7 +527,7 @@ class ShipClass:
 			partsByLoc = {}
 			for (part, partPos, partFwd, partUp) in ship.parts.values():
 				partsByLoc[partPos] = part[0].lower()
-			print "ship structure slices:"
+			print "ship structure slices: (x: %s..%s, y: %s..%s)" % (minCoords[0], maxCoords[0], minCoords[1], maxCoords[1])
 			for z in xrange(minCoords[2],maxCoords[2]+1):
 				print "z=%s"%z
 				for y in xrange(minCoords[1],maxCoords[1]+1):

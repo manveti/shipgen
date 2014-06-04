@@ -38,6 +38,9 @@ def distSquared(p1, p2):
 def addList(l1, l2):
 	return [l1[i] + l2[i] for i in xrange(min(len(l1), len(l2)))]
 
+def subtractList(l1, l2):
+	return [l1[i] - l2[i] for i in xrange(min(len(l1), len(l2)))]
+
 class Ship:
 	def __init__(self, shipType, symmetry, targetSize):
 		self.shipType = shipType
@@ -544,11 +547,367 @@ class Ship:
 						break
 #####
 ##
-					print "unable to place %s (expandable: %s)" % (partName,expandableSides)
-					break
 					#pick largest open space and try to move overlapping parts out of the way
 					#if successful, pick appropriate partPos and repeat rest of "if (choices)" block above (including break)
-					#pick random smallest expandable direction; expand wall (retraverse expanded side as above)
+##
+#####
+					# couldn't place part; expand room and try again
+					canExpandX = (SBD in expandableSides) or (PORT in expandableSides)
+					canExpandY = (FWD in expandableSides) or (AFT in expandableSides)
+					if ((canExpandX) and ((roomSize[0] < roomSize[1]) or (not canExpandY))):
+						expandChoices = list(expandableSides.intersection([SBD, PORT]))
+						if (len(expandChoices) > 1):
+							sbdDist = abs(roomPos[0])
+							portDist = abs(roomPos[0] + roomSize[0] - 1)
+							if (sbdDist < portDist):
+								expandDir = SBD
+							elif (portDist < sbdDist):
+								expandDir = PORT
+							else:
+								expandDir = random.choice(expandChoices)
+						else:
+							expandDir = expandChoices[0]
+					elif (canExpandY):
+						expandChoices = list(expandableSides.intersection([FWD, AFT]))
+						if (len(expandChoices) > 1):
+							fwdDist = abs(roomPos[1])
+							aftDist = abs(roomPos[1] + roomSize[1] - 1)
+							if (fwdDist < aftDist):
+								expandDir = FWD
+							elif (aftDist < fwdDist):
+								expandDir = AFT
+							else:
+								expandDir = random.choice(expandChoices)
+						else:
+							expandDir = expandChoices[0]
+					elif (expandableSides):
+						expandDir = random.choice(list(expandableSides))
+					else:
+#####
+##
+						#warn about failure to place part
+						print "unable to place %s"%partName
+##
+#####
+						break
+#####
+##
+					print "expanding in direction %s"%(expandDir,)
+					print "old room pos: %s, size: %s"%(roomPos,roomSize)
+##
+#####
+					# remove access requirements associated with existing wall in direction of expansion
+					for key in accessRequirements.keys():
+						(count, reqs) = accessRequirements[key]
+						if (count == 1):
+							if (reqs in [incomingAccess.get(expandDir, []), outgoingAccess.get(expandDir, [])]):
+								del accessRequirements[key]
+					for access in incomingAccess.get(expandDir, []):
+						if (access in incomingDoorways):
+							del incomingDoorways[access]
+					if (expandDir in incomingAccess):
+						del incomingAccess[expandDir]
+					if (expandDir in outgoingAccess):
+						del outgoingAccess[expandDir]
+					# remove existing wall in direction of expansion
+					extents = []
+					posList = []
+					varCoords = []
+					for i in xrange(len(expandDir)):
+						if (expandDir[i] < 0):
+							posList.append(roomPos[i] - 1)
+							expandCoord = i
+						elif (expandDir[i] > 0):
+							posList.append(roomPos[i] + roomSize[i])
+							expandCoord = i
+						else:
+							extents.append((roomPos[i], roomPos[i] + roomSize[i]))
+							posList.append(0)
+							varCoords.append(i)
+#####
+##
+					foo=['x','y','z']
+					print "deleting wall at %s=%s"%(foo[expandCoord],posList[expandCoord])
+##
+#####
+					for p in itertools.product(*[xrange(*r) for r in extents]):
+						for i in xrange(len(p)):
+							posList[varCoords[i]] = p[i]
+						blockPos = tuple(posList)
+#####
+##
+						print "  deleting structure at %s"%(blockPos,)
+##
+#####
+						if (blockPos in self.windows):
+							self.windows.remove(blockPos)
+						if (blockPos in self.structure):
+							del self.structure[blockPos]
+						if (blockPos in self.edges):
+							self.edges.remove(blockPos)
+					# fill in walls all the way around for vertical expansion, as we expand 2 blocks at a time for even decks
+					if (expandDir in [UP, DOWN]):
+						roomSize[2] += 1
+						if (expandDir == UP):
+							posList[2] += 1
+						else:
+							posList[2] -= 1
+							roomPos[2] -= 1
+						if (roomEnclosure in [ENCLOSURE_FULL, ENCLOSURE_SEALED]):
+							posList[0] = roomPos[0] + roomSize[0]
+							posList[1] = roomPos[1] - 1
+							blockPos = tuple(blockPos)
+							if ((SBD in windowDirs) and (FWD in windowDirs) and (self.isFree(*blockPos))):
+								self.windows.add(blockPos)
+							elif (blockPos in self.windows):
+								self.windows.remove(blockPos)
+							self.addStructure(blockPos, roomMaterial)
+							posList[1] = roomPos[1] + roomSize[1]
+							blockPos = tuple(blockPos)
+							if ((SBD in windowDirs) and (AFT in windowDirs) and (self.isFree(*blockPos))):
+								self.windows.add(blockPos)
+							elif (blockPos in self.windows):
+								self.windows.remove(blockPos)
+							self.addStructure(blockPos, roomMaterial)
+							posList[0] = roomPos[0] - 1
+							posList[1] = roomPos[1] - 1
+							blockPos = tuple(blockPos)
+							if ((PORT in windowDirs) and (FWD in windowDirs) and (self.isFree(*blockPos))):
+								self.windows.add(blockPos)
+							elif (blockPos in self.windows):
+								self.windows.remove(blockPos)
+							self.addStructure(blockPos, roomMaterial)
+							posList[1] = roomPos[1] + roomSize[1]
+							blockPos = tuple(blockPos)
+							if ((PORT in windowDirs) and (AFT in windowDirs) and (self.isFree(*blockPos))):
+								self.windows.add(blockPos)
+							elif (blockPos in self.windows):
+								self.windows.remove(blockPos)
+							self.addStructure(blockPos, roomMaterial)
+						else:
+							self.edges.add((roomPos[0] + roomSize[0], roomPos[1] - 1, posList[2]))
+							self.edges.add((roomPos[0] + roomSize[0], roomPos[1] + roomSize[1], posList[2]))
+							self.edges.add((roomPos[0] - 1, roomPos[1] - 1, posList[2]))
+							self.edges.add((roomPos[0] - 1, roomPos[1] + roomSize[1], posList[2]))
+						for i in xrange(*extents[0]):
+							posList[0] = i
+							for (j, winD) in [(extents[1][0] - 1, FWD), (extents[1][1], AFT)]:
+								posList[1] = j
+								blockPos = tuple(blockPos)
+								if (roomEnclosure in [ENCLOSURE_FULL, ENCLOSURE_SEALED]):
+									if ((winD in windowDirs) and (self.isFree(*blockPos))):
+										self.windows.add(blockPos)
+									elif (blockPos in self.windows):
+										self.windows.remove(blockPos)
+									self.addStructure(blockPos, roomMaterial)
+								else:
+									self.edges.add(blockPos)
+						for i in xrange(*extents[1]):
+							posList[1] = i
+							for (j, winD) in [(extents[0][1], SBD), (extents[0][0] - 1, PORT)]:
+								posList[0] = j
+								blockPos = tuple(blockPos)
+								if (roomEnclosure in [ENCLOSURE_FULL, ENCLOSURE_SEALED]):
+									if ((winD in windowDirs) and (self.isFree(*blockPos))):
+										self.windows.add(blockPos)
+									elif (blockPos in self.windows):
+										self.windows.remove(blockPos)
+									self.addStructure(blockPos, roomMaterial)
+								else:
+									self.edges.add(blockPos)
+					# expand walls
+					roomSize[expandCoord] += 1
+					if (expandDir[expandCoord] < 0):
+						roomPos[expandCoord] -= 1
+#####
+##
+					print "new room pos: %s, size: %s"%(roomPos,roomSize)
+##
+#####
+					posList[expandCoord] += expandDir[expandCoord]
+					# fill in expanded corners
+					posList[varCoords[1]] = extents[1][1]
+					if ((expandDir == DOWN) or (roomEnclosure in [ENCLOSURE_FULL, ENCLOSURE_SEALED])):
+						if (expandDir in [UP, DOWN]):
+							winD = [AFT]
+						else:
+							winD = [UP]
+						posList[varCoords[0]] = extents[0][0] - 1
+						if (expandDir in [SBD, PORT]):
+							winD.append(FWD)
+						else:
+							winD.append(PORT)
+						blockPos = tuple(posList)
+#####
+##
+						print "  adding corner structure at %s"%(blockPos,)
+##
+#####
+						if ((expandDir in windowDirs) and (winD[0] in windowDirs) and (winD[1] in windowDirs) and (self.isFree(*blockPos))):
+							self.windows.add(blockPos)
+						elif (blockPos in self.windows):
+							self.windows.remove(blockPos)
+						self.addStructure(blockPos, roomMaterial)
+						posList[varCoords[0]] = extents[0][1]
+						if (expandDir in [SBD, PORT]):
+							winD.append(AFT)
+						else:
+							winD.append(SBD)
+						blockPos = tuple(posList)
+#####
+##
+						print "  adding corner structure at %s"%(blockPos,)
+##
+#####
+						if ((expandDir in windowDirs) and (winD[0] in windowDirs) and (winD[1] in windowDirs) and (self.isFree(*blockPos))):
+							self.windows.add(blockPos)
+						elif (blockPos in self.windows):
+							self.windows.remove(blockPos)
+						self.addStructure(blockPos, roomMaterial)
+					else:
+						posList[varCoords[0]] = extents[0][0] - 1
+						self.edges.add(tuple(posList))
+						posList[varCoords[0]] = extents[0][1]
+						self.edges.add(tuple(posList))
+					posList[varCoords[1]] = extents[1][0] - 1
+					if ((expandDir != UP) and (roomEnclosure != ENCLOSURE_NONE)):
+						if (expandDir in [UP, DOWN]):
+							winD = [FWD]
+						else:
+							winD = [DOWN]
+						posList[varCoords[0]] = extents[0][0] - 1
+						if (expandDir in [SBD, PORT]):
+							winD.append(FWD)
+						else:
+							winD.append(PORT)
+						blockPos = tuple(posList)
+#####
+##
+						print "  adding corner structure at %s"%(blockPos,)
+##
+#####
+						if ((expandDir in windowDirs) and (winD[0] in windowDirs) and (winD[1] in windowDirs) and (self.isFree(*blockPos))):
+							self.windows.add(blockPos)
+						elif (blockPos in self.windows):
+							self.windows.remove(blockPos)
+						self.addStructure(blockPos, roomMaterial)
+						posList[varCoords[0]] = extents[0][1]
+						if (expandDir in [SBD, PORT]):
+							winD.append(AFT)
+						else:
+							winD.append(SBD)
+						blockPos = tuple(posList)
+#####
+##
+						print "  adding corner structure at %s"%(blockPos,)
+##
+#####
+						if ((expandDir in windowDirs) and (winD[0] in windowDirs) and (winD[1] in windowDirs) and (self.isFree(*blockPos))):
+							self.windows.add(blockPos)
+						elif (blockPos in self.windows):
+							self.windows.remove(blockPos)
+						self.addStructure(blockPos, roomMaterial)
+					else:
+						posList[varCoords[0]] = extents[0][0] - 1
+						self.edges.add(tuple(posList))
+						posList[varCoords[0]] = extents[0][1]
+						self.edges.add(tuple(posList))
+					# fill in expanded edges
+					enclosed = (roomEnclosure in [ENCLOSURE_FULL, ENCLOSURE_SEALED])
+					if (expandDir in [UP, DOWN]):
+						edgeSpecs = [(extents[1][0] - 1, FWD), (extents[1][1], AFT)]
+					else:
+						edgeSpecs = [(extents[1][1], UP), (extents[1][0] - 1, DOWN)]
+					for i in xrange(*extents[0]):
+						posList[varCoords[0]] = i
+						for (j, winD) in edgeSpecs:
+							posList[varCoords[1]] = j
+							blockPos = tuple(posList)
+#####
+##
+							print "  adding edge structure at %s"%(blockPos,)
+##
+#####
+							if ((enclosed) or ((roomEnclosure != ENCLOSURE_NONE) and (DOWN in [expandDir, winD]))):
+								if ((expandDir in windowDirs) and (winD in windowDirs) and (self.isFree(*blockPos))):
+									self.windows.add(blockPos)
+								elif (blockPos in self.windows):
+									self.windows.remove(blockPos)
+								self.addStructure(blockPos, roomMaterial)
+							else:
+								self.edges.add(blockPos)
+					if (expandDir in [UP, DOWN]):
+						edgeSpecs = [(extents[0][1], SBD), (extents[0][0] - 1, PORT)]
+					else:
+						edgeSpecs = [(extents[0][1], UP), (extents[0][0] - 1, DOWN)]
+					for i in xrange(*extents[1]):
+						posList[varCoords[1]] = i
+						for (j, winD) in edgeSpecs:
+							posList[varCoords[0]] = j
+							blockPos = tuple(posList)
+#####
+##
+							print "  adding edge1 structure at %s"%(blockPos,)
+##
+#####
+							if (roomEnclosure in [ENCLOSURE_FULL, ENCLOSURE_SEALED]):
+								if ((expandDir in windowDirs) and (winD in windowDirs) and (self.isFree(*blockPos))):
+									self.windows.add(blockPos)
+								elif (blockPos in self.windows):
+									self.windows.remove(blockPos)
+								self.addStructure(blockPos, roomMaterial)
+							else:
+								self.edges.add(blockPos)
+					# fill in expanded walls
+					enclosed = (roomEnclosure in [ENCLOSURE_FULL, ENCLOSURE_SEALED])
+					if ((expandDir == DOWN) and (roomEnclosure != ENCLOSURE_NONE)):
+						enclosed = True
+#####
+##
+					foo=['x','y','z']
+					print "adding wall at %s=%s (extents: %s)"%(foo[expandCoord],posList[expandCoord],extents)
+##
+#####
+					for p in itertools.product(*[xrange(*r) for r in extents]):
+						for i in xrange(len(p)):
+							posList[varCoords[i]] = p[i]
+						blockPos = tuple(posList)
+#####
+##
+						print "  adding structure at %s"%(blockPos,)
+##
+#####
+						if (enclosed):
+							if ((expandDir in windowDirs) and (self.isFree(*blockPos))):
+								self.windows.add(blockPos)
+							elif (blockPos in self.windows):
+								self.windows.remove(blockPos)
+							self.addStructure(blockPos, roomMaterial)
+							if (self.isFree(*addList(blockPos, expandDir))):
+								if (expandDir not in outgoingAccess):
+									outgoingAccess[expandDir] = set()
+								outgoingAccess[expandDir].add(tuple(subtractList(blockPos, expandDir)))
+							elif (expandDir in expandableSides):
+								expandableSides.remove(expandDir)
+							if (blockPos in self.potentialDoorways):
+								if (expandDir not in incomingAccess):
+									incomingAccess[expandDir] = set()
+								accessBlock = tuple(subtractList(blockPos, expandDir))
+								incomingAccess[expandDir].add(accessBlock)
+								incomingDoorways[accessBlock] = blockPos
+						else:
+							self.edges.add(blockPos)
+					# recompute door access
+					req = None
+					if (expandDir in incomingAccess):
+						req = (1, incomingAccess[expandDir])
+					elif (expandDir in outgoingAccess):
+						req = (1, outgoingAccess[expandDir])
+					if ((req) and (req[1])):
+						accessRequirements[id(req)] = req
+#####
+##
+					print "trying to place %s; expanded in direction %s"%(partName,expandDir)
 ##
 #####
 		# copy temporary parts dictionary into ship-wide one
