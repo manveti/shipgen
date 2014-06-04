@@ -1,4 +1,5 @@
 import copy
+import itertools
 import math
 import random
 
@@ -484,7 +485,7 @@ class Ship:
 		# place parts
 		roomParts = {}
 		occupied = set()
-		accessReq = {}
+		accessReq = accessRequirements.copy()
 		for part in reversed(sorted(partCounts.keys(), key=lambda p: reduce(lambda x, y: x * y, Parts.parts[self.size][p].size, 1))):
 			partSize = Parts.parts[self.size][part].size
 			partAccess = Parts.parts[self.size][part].accessRequirements
@@ -494,19 +495,32 @@ class Ship:
 				else:
 					partName = "%s %s" % (roomName, part)
 				while (True):
+					# consider all points far enough from a wall to fit part
 					bounds = [(roomPos[i], roomPos[i] + roomSize[i] + 1 - partSize[i]) for i in xrange(len(roomSize))]
 					choices = set((x, y, z) for x in xrange(*bounds[0]) for y in xrange(*bounds[1]) for z in xrange(*bounds[2]))
-					for (x, y, z) in occupied:
-						for i in xrange(partSize[0]):
-							for j in xrange(partSize[1]):
-								for k in xrange(partSize[2]):
-									pos = (x - i, y - j, z - k)
-									if (pos in choices):
-										choices.remove(pos)
+					# trim choices which intersect other parts
+					for partPos in itertools.product(*[xrange(s) for s in partSize]):
+						choices.difference_update([c for c in choices if tuple(addList(c, partPos)) in occupied])
+					# trim choices which run afoul of part access requirements
+					for (accessCount, accessPoints) in partAccess.values():
+						freeCounts = {}
+						for c in choices:
+							freeCounts[c] = len([a for a in accessPoints if tuple(addList(a, c)) not in occupied])
+						choices.difference_update([c for c in choices if freeCounts[c] < accessCount])
+					# trim choices which run afoul of existing access requirements
+					for (accessCount, accessPoints) in accessReq.values():
+						freeCounts = {}
+						for c in choices:
+							freeCounts[c] = 0
+							for p in accessPoints:
+								for i in xrange(len(p)):
+									if ((p[i] < c[i]) or (p[i] >= c[i] + roomSize[i])):
+										freeCounts[c] += 1
+										break
+						choices.difference_update([c for c in choices if freeCounts[c] < accessCount])
 #####
 ##
-					#trim choices to remove places which don't fit partAccess
-					#trim choices to remove places which prevent all access requirements from linking up
+					#trim choices which run afoul of existing access requirements prevent all access requirements from linking up
 ##
 #####
 					if (choices):
@@ -530,10 +544,11 @@ class Ship:
 						break
 #####
 ##
+					print "unable to place %s (expandable: %s)" % (partName,expandableSides)
 					break
 					#pick largest open space and try to move overlapping parts out of the way
 					#if successful, pick appropriate partPos and repeat rest of "if (choices)" block above (including break)
-					#pick random expandable direction; expand wall (retraverse expanded side as above)
+					#pick random smallest expandable direction; expand wall (retraverse expanded side as above)
 ##
 #####
 		# copy temporary parts dictionary into ship-wide one
@@ -695,7 +710,7 @@ class Ship:
 					blockAlignment = set([UP, AFT])
 				else:
 					blockAlignment = set([UP])
-					if ((blockPos not in self.windows) and (blockPos not in self.doors)):
+					if ((blockPos not in self.windows) and (blockPos not in self.doorways)):
 						attachmentPoint = tuple(addList(blockPos, UP))
 						if (attachmentPoint not in self.attachmentPoints):
 							self.attachmentPoints[attachmentPoint] = set()
@@ -729,7 +744,7 @@ class Ship:
 					blockAlignment = set([DOWN, AFT])
 				else:
 					blockAlignment = set([DOWN])
-					if ((blockPos not in self.windows) and (blockPos not in self.doors)):
+					if ((blockPos not in self.windows) and (blockPos not in self.doorways)):
 						attachmentPoint = tuple(addList(blockPos, DOWN))
 						if (attachmentPoint not in self.attachmentPoints):
 							self.attachmentPoints[attachmentPoint] = set()
@@ -743,7 +758,7 @@ class Ship:
 					blockAlignment = set([SBD, AFT])
 				else:
 					blockAlignment = set([SBD])
-					if ((blockPos not in self.windows) and (blockPos not in self.doors)):
+					if ((blockPos not in self.windows) and (blockPos not in self.doorways)):
 						attachmentPoint = tuple(addList(blockPos, SBD))
 						if (attachmentPoint not in self.attachmentPoints):
 							self.attachmentPoints[attachmentPoint] = set()
@@ -757,21 +772,21 @@ class Ship:
 					blockAlignment = set([PORT, AFT])
 				else:
 					blockAlignment = set([PORT])
-					if ((blockPos not in self.windows) and (blockPos not in self.doors)):
+					if ((blockPos not in self.windows) and (blockPos not in self.doorways)):
 						attachmentPoint = tuple(addList(blockPos, PORT))
 						if (attachmentPoint not in self.attachmentPoints):
 							self.attachmentPoints[attachmentPoint] = set()
 						self.attachmentPoints[attachmentPoint].add(blockPos)
 			elif (FWD in freeSides):
 				blockAlignment = set([FWD])
-				if ((blockPos not in self.windows) and (blockPos not in self.doors)):
+				if ((blockPos not in self.windows) and (blockPos not in self.doorways)):
 					attachmentPoint = tuple(addList(blockPos, FWD))
 					if (attachmentPoint not in self.attachmentPoints):
 						self.attachmentPoints[attachmentPoint] = set()
 					self.attachmentPoints[attachmentPoint].add(blockPos)
 			elif (AFT in freeSides):
 				blockAlignment = set([AFT])
-				if ((blockPos not in self.windows) and (blockPos not in self.doors)):
+				if ((blockPos not in self.windows) and (blockPos not in self.doorways)):
 					attachmentPoint = tuple(addList(blockPos, AFT))
 					if (attachmentPoint not in self.attachmentPoints):
 						self.attachmentPoints[attachmentPoint] = set()
