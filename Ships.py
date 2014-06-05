@@ -488,7 +488,6 @@ class Ship:
 		# place parts
 		roomParts = {}
 		occupied = set()
-		accessReq = accessRequirements.copy()
 		for part in reversed(sorted(partCounts.keys(), key=lambda p: reduce(lambda x, y: x * y, Parts.parts[self.size][p].size, 1))):
 			partSize = Parts.parts[self.size][part].size
 			partAccess = Parts.parts[self.size][part].accessRequirements
@@ -511,30 +510,85 @@ class Ship:
 							freeCounts[c] = len([a for a in accessPoints if tuple(addList(a, c)) not in occupied])
 						choices.difference_update([c for c in choices if freeCounts[c] < accessCount])
 					# trim choices which run afoul of existing access requirements
-					for (accessCount, accessPoints) in accessReq.values():
+					for (accessCount, accessPoints) in accessRequirements.values():
 						freeCounts = {}
 						for c in choices:
 							freeCounts[c] = 0
 							for p in accessPoints:
+								if (p in occupied):
+									continue
 								for i in xrange(len(p)):
 									if ((p[i] < c[i]) or (p[i] >= c[i] + roomSize[i])):
 										freeCounts[c] += 1
 										break
 						choices.difference_update([c for c in choices if freeCounts[c] < accessCount])
-#####
-##
-					#trim choices which run afoul of existing access requirements prevent all access requirements from linking up
-##
-#####
+					# trim choices which prevent all free space from linking up
+					invalidChoices = set()
+					for c in choices:
+						# determine free blocks adjacent to part
+						adjacent = set()
+						for (x, y) in itertools.product(xrange(partSize[0]), xrange(partSize[1])):
+							blockPos = tuple(addList(c, (x, y, -1)))
+							if ((blockPos[2] >= roomPos[2]) and (blockPos not in occupied)):
+								adjacent.add(blockPos)
+							blockPos = tuple(addList(c, (x, y, partSize[2])))
+							if ((blockPos[2] < roomPos[2] + roomSize[2]) and (blockPos not in occupied)):
+								adjacent.add(blockPos)
+						for (x, z) in itertools.product(xrange(partSize[0]), xrange(partSize[2])):
+							blockPos = tuple(addList(c, (x, -1, z)))
+							if ((blockPos[1] >= roomPos[1]) and (blockPos not in occupied)):
+								adjacent.add(blockPos)
+							blockPos = tuple(addList(c, (x, partSize[1], z)))
+							if ((blockPos[1] < roomPos[1] + roomSize[1]) and (blockPos not in occupied)):
+								adjacent.add(blockPos)
+						for (y, z) in itertools.product(xrange(partSize[1]), xrange(partSize[2])):
+							blockPos = tuple(addList(c, (-1, y, z)))
+							if ((blockPos[0] >= roomPos[0]) and (blockPos not in occupied)):
+								adjacent.add(blockPos)
+							blockPos = tuple(addList(c, (partSize[0], y, z)))
+							if ((blockPos[0] < roomPos[0] + roomSize[0]) and (blockPos not in occupied)):
+								adjacent.add(blockPos)
+						if (not adjacent):
+							continue
+						# determine contiguous free areas around each adjacent block, merging overlapping zones
+						partBlocks = set(tuple(addList(c, p)) for p in itertools.product(*[xrange(s) for s in partSize]))
+						zones = []
+						while (adjacent):
+							curZone = set()
+							newBlocks = set([adjacent.pop()])
+							while (newBlocks):
+								blockPos = newBlocks.pop()
+								curZone.add(blockPos)
+								for offset in ALL_DIRECTIONS:
+									newPos = tuple(addList(blockPos, offset))
+									if ((newPos[0] < roomPos[0]) or (newPos[0] >= roomPos[0] + roomSize[0])):
+										continue
+									if ((newPos[1] < roomPos[1]) or (newPos[1] >= roomPos[1] + roomSize[1])):
+										continue
+									if ((newPos[2] < roomPos[2]) or (newPos[2] >= roomPos[2] + roomSize[2])):
+										continue
+									if ((newPos not in occupied) and (newPos not in partBlocks)):
+										if (newPos in adjacent):
+											adjacent.remove(newPos)
+										if (newPos not in curZone):
+											newBlocks.add(newPos)
+							overlaps = [z for z in zones if z.intersection(curZone)]
+							if (overlaps):
+								for z in overlaps:
+									curZone.union_update(z)
+									zones.remove(z)
+							zones.append(curZone)
+						if (len(zones) > 1):
+							# part breaks room into at least two disjoint zones
+							invalidChoices.add(c)
+					choices.difference_update(invalidChoices)
 					if (choices):
 						partPos = random.choice(list(choices))
 						partSpaces = set()
-						for i in xrange(partSize[0]):
-							for j in xrange(partSize[1]):
-								for k in xrange(partSize[2]):
-									pos = (partPos[0] + i, partPos[1] + j, partPos[2] + k)
-									partSpaces.add(pos)
-									occupied.add(pos)
+						for partBlock in itertools.product(*[xrange(s) for s in partSize]):
+							pos = tuple(addList(partPos, partBlock))
+							partSpaces.add(pos)
+							occupied.add(pos)
 						partAccessRequirements = {}
 						for req in partAccess.values():
 							reqPoints = set()
@@ -542,7 +596,7 @@ class Ship:
 								reqPoints.add(tuple(addList(point, partPos)))
 							accessSpec = (req[0], reqPoints)
 							partAccessRequirements[id(accessSpec)] = accessSpec
-							accessReq[id(accessSpec)] = accessSpec
+							accessRequirements[id(accessSpec)] = accessSpec
 						roomParts[partName] = (part, partPos, FWD, UP, partSpaces, partAccessRequirements)
 						break
 #####
@@ -652,7 +706,9 @@ class Ship:
 							posList[2] += 1
 						else:
 							posList[2] -= 1
+							roomPos = list(roomPos)
 							roomPos[2] -= 1
+							roomPos = tuple(roomPos)
 						if (roomEnclosure in [ENCLOSURE_FULL, ENCLOSURE_SEALED]):
 							posList[0] = roomPos[0] + roomSize[0]
 							posList[1] = roomPos[1] - 1
@@ -718,7 +774,9 @@ class Ship:
 					# expand walls
 					roomSize[expandCoord] += 1
 					if (expandDir[expandCoord] < 0):
+						roomPos = list(roomPos)
 						roomPos[expandCoord] -= 1
+						roomPos = tuple(roomPos)
 #####
 ##
 					print "new room pos: %s, size: %s"%(roomPos,roomSize)
@@ -918,7 +976,7 @@ class Ship:
 		roomDoorProb = Rooms.rooms[room].doors
 		for direction in incomingAccess.keys():
 			needDoor = (direction in ENCLOSURE_DOOR_DIRECTIONS.get(roomEnclosure, []))
-			doorChoices = list(incomingAccess[direction])
+			doorChoices = [pos for pos in incomingAccess[direction] if pos not in occupied]
 			while (doorChoices):
 				if (needDoor):
 					accessBlock = doorChoices.pop(random.randrange(len(doorChoices)))
@@ -941,30 +999,30 @@ class Ship:
 				if ((i >= roomPos[0]) and (i < roomPos[0] + roomSize[0])):
 					if ((j >= roomPos[1]) and (j < roomPos[1] + roomSize[1])):
 						doorPos = (i, j, roomPos[2] + roomSize[2])
-						if ((self.isFree(*addList(doorPos, UP))) and (self.isFree(*addList(doorPos, DOWN)))):
+						if ((self.isFree(*addList(doorPos, UP))) and (tuple(addList(doorPos, DOWN)) not in occupied)):
 							doorProb = max(roomDoorProb, self.potentialDoorways.get(doorPos, (0, 0))[1])
 							self.potentialDoorways[doorPos] = (UP, doorProb)
 						doorPos = (i, j, roomPos[2] - 1)
-						if ((self.isFree(*addList(doorPos, DOWN))) and (self.isFree(*addList(doorPos, UP)))):
+						if ((self.isFree(*addList(doorPos, DOWN))) and (tuple(addList(doorPos, UP)) not in occupied)):
 							doorProb = max(roomDoorProb, self.potentialDoorways.get(doorPos, (0, 0))[1])
 							self.potentialDoorways[doorPos] = (DOWN, doorProb)
 					if ((j >= roomPos[2]) and (j < roomPos[2] + roomSize[2]) and ((j & 1) == 0)):
 						doorPos = (i, roomPos[1] - 1, j)
-						if ((self.isFree(*addList(doorPos, FWD))) and (self.isFree(*addList(doorPos, AFT)))):
+						if ((self.isFree(*addList(doorPos, FWD))) and (tuple(addList(doorPos, AFT)) not in occupied)):
 							doorProb = max(roomDoorProb, self.potentialDoorways.get(doorPos, (0, 0))[1])
 							self.potentialDoorways[doorPos] = (FWD, doorProb)
 						doorPos = (i, roomPos[1] + roomSize[1], j)
-						if ((self.isFree(*addList(doorPos, AFT))) and (self.isFree(*addList(doorPos, FWD)))):
+						if ((self.isFree(*addList(doorPos, AFT))) and (tuple(addList(doorPos, FWD)) not in occupied)):
 							doorProb = max(roomDoorProb, self.potentialDoorways.get(doorPos, (0, 0))[1])
 							self.potentialDoorways[doorPos] = (AFT, doorProb)
 				if ((i >= roomPos[1]) and (i < roomPos[1] + roomSize[1])):
 					if ((j >= roomPos[2]) and (j < roomPos[2] + roomSize[2]) and ((j & 1) == 0)):
 						doorPos = (roomPos[0] + roomSize[0], i, j)
-						if ((self.isFree(*addList(doorPos, SBD))) and (self.isFree(*addList(doorPos, PORT)))):
+						if ((self.isFree(*addList(doorPos, SBD))) and (tuple(addList(doorPos, PORT)) not in occupied)):
 							doorProb = max(roomDoorProb, self.potentialDoorways.get(doorPos, (0, 0))[1])
 							self.potentialDoorways[doorPos] = (SBD, doorProb)
 						doorPos = (roomPos[0] - 1, i, j)
-						if ((self.isFree(*addList(doorPos, PORT))) and (self.isFree(*addList(doorPos, SBD)))):
+						if ((self.isFree(*addList(doorPos, PORT))) and (tuple(addList(doorPos, SBD)) not in occupied)):
 							doorProb = max(roomDoorProb, self.potentialDoorways.get(doorPos, (0, 0))[1])
 							self.potentialDoorways[doorPos] = (PORT, doorProb)
 
