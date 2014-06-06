@@ -1311,7 +1311,7 @@ class Ship:
 						del self.attachmentPoints[blockPos]
 				# add new attachment points
 				for (attachmentPos, attachmentDir) in Parts.parts[self.size][part].attachments:
-					attachmentPoint = tuple(addList(addList(partPos, attachment), attachmentDir))
+					attachmentPoint = tuple(addList(addList(partPos, attachmentPos), attachmentDir))
 					if (self.isFree(*attachmentPoint)):
 						if (attachmentPoint not in self.attachmentPoints):
 							self.attachmentPoints[attachmentPoint] = set()

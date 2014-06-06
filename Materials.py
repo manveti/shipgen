@@ -73,9 +73,9 @@ def init():
 	initialized = True
 
 def toughestMaterial(m1, m2, size=TYPE_LG, block=BLOCK):
-	if (m1 not in materials):
+	if ((m1 not in materials) or (size not in materials[m1].toughness)):
 		return m2
-	if (m2 not in materials):
+	if ((m2 not in materials) or (size not in materials[m2].toughness)):
 		return m1
 	if (materials[m1].toughness.get(size, {}).get(block) >= materials[m2].toughness.get(size, {}).get(block)):
 		return m1
