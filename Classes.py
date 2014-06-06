@@ -515,19 +515,30 @@ class ShipClass:
 		print "reactors: %s (power: %s)"%(reactors,reactorsPower)
 		print "structure mass: %s"%ship.structureMass
 		print "mass: %s"%mass
-		if (ship.structure):
+		if (ship.occupied):
 			minCoords = [None,None,None]
 			maxCoords = [None,None,None]
-			for pos in ship.structure.keys():
-				for i in xrange(len(pos)):
-					if ((minCoords[i] is None) or (pos[i]<minCoords[i])):
-						minCoords[i]=pos[i]
-					if ((maxCoords[i] is None) or (pos[i]>maxCoords[i])):
-						maxCoords[i]=pos[i]
+			for x in ship.occupied.keys():
+				if ((minCoords[0] is None) or (x<minCoords[0])):
+					minCoords[0]=x
+				if ((maxCoords[0] is None) or (x>maxCoords[0])):
+					maxCoords[0]=x
+				for y in ship.occupied[x].keys():
+					if ((minCoords[1] is None) or (y<minCoords[1])):
+						minCoords[1]=y
+					if ((maxCoords[1] is None) or (y>maxCoords[1])):
+						maxCoords[1]=y
+					for z in ship.occupied[x][y]:
+						if ((minCoords[2] is None) or (z<minCoords[2])):
+							minCoords[2]=z
+						if ((maxCoords[2] is None) or (z>maxCoords[2])):
+							maxCoords[2]=z
 			partsByLoc = {}
+			import itertools
 			for (part, partPos, partFwd, partUp) in ship.parts.values():
-				partsByLoc[partPos] = part[0].lower()
-			print "ship structure slices: (x: %s..%s, y: %s..%s)" % (minCoords[0], maxCoords[0], minCoords[1], maxCoords[1])
+				for blockPos in itertools.product(*[xrange(s) for s in Parts.parts[ship.size][part].size]):
+					partsByLoc[tuple(Ships.addList(blockPos, partPos))] = part[0].lower()
+			print "ship slices: (x: %s..%s, y: %s..%s)" % (minCoords[0], maxCoords[0], minCoords[1], maxCoords[1])
 			for z in xrange(minCoords[2],maxCoords[2]+1):
 				print "z=%s"%z
 				for y in xrange(minCoords[1],maxCoords[1]+1):
@@ -539,7 +550,7 @@ class ShipClass:
 						else: line += ship.structure.get((x,y,z), (" ",))[0][0]
 					print line
 		else:
-			print "no ship structure"
+			print "no ship contents"
 ##
 #####
 		return ship

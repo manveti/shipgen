@@ -1,3 +1,4 @@
+import itertools
 import os
 
 import ConfigFile
@@ -50,7 +51,37 @@ class Part:
 		for attachConfig in configDict.get(ATTACHMENTS, []):
 			attachment = [int(x) for x in attachConfig.split() if x][:3]
 			attachment += [0] * (3 - len(attachment))
-			self.attachments.add(tuple(attachment))
+			attachmentDir = None
+			if (attachment[2] >= self.size[2]):
+				attachment[2] = self.size[2] - 1
+				attachmentDir = UP
+			elif (attachment[2] < 0):
+				attachment[2] = 0
+				attachmentDir = DOWN
+			elif (attachment[0] >= self.size[0]):
+				attachment[0] = self.size[0] - 1
+				attachmentDir = SBD
+			elif (attachment[0] < 0):
+				attachment[0] = 0
+				attachmentDir = PORT
+			elif (attachment[1] < 0):
+				attachment[1] = 0
+				attachmentDir = FWD
+			elif (attachment[1] >= self.size[1]):
+				attachment[1] = self.size[1] - 1
+				attachmentDir = AFT
+			if (attachmentDir):
+				self.attachments.add((tuple(attachment), attachmentDir))
+		if (not self.attachments):
+			for (x, y) in itertools.product(xrange(self.size[0]), xrange(self.size[1])):
+				self.attachments.add(((x, y, self.size[2] - 1), UP))
+				self.attachments.add(((x, y, 0), DOWN))
+			for (y, z) in itertools.product(xrange(self.size[1]), xrange(self.size[2])):
+				self.attachments.add(((self.size[0] - 1, y, z), SBD))
+				self.attachments.add(((0, y, z), PORT))
+			for (x, z) in itertools.product(xrange(self.size[0]), xrange(self.size[2])):
+				self.attachments.add(((x, 0, z), FWD))
+				self.attachments.add(((x, self.size[1] - 1, z), AFT))
 
 		self.doors = set()
 		for doorConfig in configDict.get(DOORS, []):

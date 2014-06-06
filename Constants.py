@@ -25,3 +25,12 @@ ROOM_MIN = 'min'
 ROOM_MAX = 'max'
 FREE_MIN = 'min'
 FREE_MAX = 'max'
+
+UP = (0, 0, 1)
+DOWN = (0, 0, -1)
+SBD = (1, 0, 0)
+PORT = (-1, 0, 0)
+FWD = (0, -1, 0)
+AFT = (0, 1, 0)
+ALL_DIRECTIONS = [UP, DOWN, SBD, PORT, FWD, AFT]
+SE_DIRECTIONS = {UP: "Up", DOWN: "Down", SBD: "Right", PORT: "Left", FWD: "Forward", AFT: "Backward"}
