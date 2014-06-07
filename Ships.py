@@ -1232,7 +1232,15 @@ class Ship:
 						self.attachmentPoints[attachmentPoint] = set()
 					self.attachmentPoints[attachmentPoint].add(attachmentDir)
 		# add parts from partCounts, starting with those with the most attachment points
+		accessRequirements = {}
+		for doorPos in self.doorways.keys():
+			(direction, doorProb) = self.doorways[doorPos]
+			doorPos = tuple(addList(doorPos, direction))
+			if (self.isFree(*doorPos)):
+				req = (1, set([doorPos]))
+				accessRequirements[id(req)] = req
 		for part in reversed(sorted(partCounts.keys(), key=lambda p: len(Parts.parts[self.size][p].attachments))):
+			partSize = Parts.parts[self.size][part].size
 			for i in xrange(partCounts[part]):
 				if (i > 0):
 					partName = "%s %s %d" % (Rooms.EXTERIOR, part, i)
@@ -1249,7 +1257,7 @@ class Ship:
 						partPos = tuple(subtractList(point, attachment))
 						# verify part can fit
 						valid = True
-						for blockPos in itertools.product(*[xrange(s) for s in Parts.parts[self.size][part].size]):
+						for blockPos in itertools.product(*[xrange(s) for s in partSize]):
 							blockPos = tuple(addList(partPos, blockPos))
 							if (not self.isFree(*blockPos)):
 								valid = False
@@ -1265,11 +1273,21 @@ class Ship:
 								if (accessCount > 0):
 									valid = False
 									break
-#####
-##
-						#if part blocks existing access requirement: valid=False
-##
-#####
+						if (valid):
+							# verify part doesn't run afoul of existing access requirements
+							for (accessCount, accessPoints) in accessRequirements.values():
+								for p in accessPoints:
+									if (not self.isFree(*p)):
+										continue
+									for i in xrange(len(p)):
+										if ((p[i] < partPos[i]) or (p[i] >= partPos[i] + partSize[i])):
+											accessCount -= 1
+											break
+									if (accessCount <= 0):
+										break
+								if (accessCount > 0):
+									valid = False
+									break
 						if (not valid):
 							continue
 						pointScore = 0
@@ -1316,11 +1334,11 @@ class Ship:
 						if (attachmentPoint not in self.attachmentPoints):
 							self.attachmentPoints[attachmentPoint] = set()
 						self.attachmentPoints[attachmentPoint].add(attachmentDir)
-#####
-##
-				#update access requirements
-##
-#####
+				# add new access requirements
+				for (accessCount, accessPoints) in Parts.parts[self.size][part].accessRequirements.values():
+					newPoints = set(tuple(addList(partPos, p)) for p in accessPoints)
+					req = (accessCount, newPoints)
+					accessRequirements[id(req)] = req
 ##
 #####
 
